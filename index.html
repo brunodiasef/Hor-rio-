@@ -28,6 +28,29 @@
   select, input {
     font-family: 'Inter', sans-serif;
   }
+  .ponto-btn {
+    transition: all 0.3s ease;
+  }
+  .ponto-btn:active {
+    transform: scale(0.97);
+  }
+  .ponto-signed {
+    background: linear-gradient(135deg, #10b981, #059669);
+  }
+  .ponto-unsigned {
+    background: linear-gradient(135deg, #3b82f6, #2563eb);
+  }
+  .ponto-unsigned:hover {
+    background: linear-gradient(135deg, #2563eb, #1d4ed8);
+  }
+  @keyframes checkmark {
+    0% { transform: scale(0); opacity: 0; }
+    50% { transform: scale(1.3); }
+    100% { transform: scale(1); opacity: 1; }
+  }
+  .checkmark-anim {
+    animation: checkmark 0.4s ease-out forwards;
+  }
 </style>
 </head>
 <body class="bg-gradient-to-br from-slate-50 to-blue-50 min-h-screen">
@@ -52,7 +75,7 @@
   </header>
 
   <!-- Status Cards -->
-  <div class="grid md:grid-cols-2 gap-4 mb-6">
+  <div class="grid md:grid-cols-2 gap-4 mb-4">
     <!-- Aula Atual -->
     <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-6">
       <div class="flex items-center gap-2 mb-3">
@@ -75,6 +98,26 @@
       <div id="nextClassInfo">
         <div class="text-slate-400 text-sm">Carregando...</div>
       </div>
+    </div>
+  </div>
+
+  <!-- Botão Assinar Ponto -->
+  <div class="mb-6">
+    <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-5 flex flex-col sm:flex-row items-center justify-between gap-4">
+      <div class="flex items-center gap-3">
+        <div id="pontoIcon" class="w-12 h-12 rounded-xl flex items-center justify-center bg-blue-100">
+          <svg id="pontoIconSvg" class="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
+          </svg>
+        </div>
+        <div>
+          <div id="pontoStatus" class="font-bold text-slate-800">Aguardando assinatura</div>
+          <div id="pontoDetail" class="text-sm text-slate-500">Clique no botão para registrar sua presença hoje</div>
+        </div>
+      </div>
+      <button id="pontoBtn" onclick="assinarPonto()" class="ponto-btn ponto-unsigned text-white font-bold text-base px-8 py-3 rounded-xl shadow-md cursor-pointer whitespace-nowrap">
+        ASSINAR O PONTO
+      </button>
     </div>
   </div>
 
@@ -190,7 +233,7 @@ const DEFAULT_PERIODS = [
 
 let state = {
   classes: [],
-  schedule: {}, // { "seg-0": classId, "ter-2": classId, ... }
+  schedule: {},
   periods: []
 };
 
@@ -218,6 +261,80 @@ function saveState() {
   localStorage.setItem('schoolScheduleApp', JSON.stringify(state));
 }
 
+// ============ Ponto (Attendance) ============
+function getTodayKey() {
+  const now = new Date();
+  return now.getFullYear() + '-' + String(now.getMonth() + 1).padStart(2, '0') + '-' + String(now.getDate()).padStart(2, '0');
+}
+
+function getPontoState() {
+  try {
+    const saved = localStorage.getItem('pontoState');
+    if (saved) return JSON.parse(saved);
+  } catch (e) {}
+  return { signedDate: null, signedTime: null };
+}
+
+function savePontoState(pontoState) {
+  localStorage.setItem('pontoState', JSON.stringify(pontoState));
+}
+
+function isPontoSignedToday() {
+  const ponto = getPontoState();
+  return ponto.signedDate === getTodayKey();
+}
+
+function renderPontoButton() {
+  const btn = document.getElementById('pontoBtn');
+  const icon = document.getElementById('pontoIcon');
+  const iconSvg = document.getElementById('pontoIconSvg');
+  const status = document.getElementById('pontoStatus');
+  const detail = document.getElementById('pontoDetail');
+
+  if (isPontoSignedToday()) {
+    const ponto = getPontoState();
+    btn.textContent = 'PONTO ASSINADO';
+    btn.className = 'ponto-btn ponto-signed text-white font-bold text-base px-8 py-3 rounded-xl shadow-md cursor-default whitespace-nowrap';
+    btn.disabled = true;
+    
+    icon.className = 'w-12 h-12 rounded-xl flex items-center justify-center bg-green-100';
+    iconSvg.innerHTML = '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>';
+    iconSvg.className = 'w-6 h-6 text-green-600 checkmark-anim';
+    
+    status.textContent = 'Presença registrada';
+    status.className = 'font-bold text-green-700';
+    detail.textContent = 'Registrado às ' + ponto.signedTime;
+    detail.className = 'text-sm text-slate-500';
+  } else {
+    btn.textContent = 'ASSINAR O PONTO';
+    btn.className = 'ponto-btn ponto-unsigned text-white font-bold text-base px-8 py-3 rounded-xl shadow-md cursor-pointer whitespace-nowrap';
+    btn.disabled = false;
+    
+    icon.className = 'w-12 h-12 rounded-xl flex items-center justify-center bg-blue-100';
+    iconSvg.innerHTML = '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>';
+    iconSvg.className = 'w-6 h-6 text-blue-600';
+    
+    status.textContent = 'Aguardando assinatura';
+    status.className = 'font-bold text-slate-800';
+    detail.textContent = 'Clique no botão para registrar sua presença hoje';
+    detail.className = 'text-sm text-slate-500';
+  }
+}
+
+function assinarPonto() {
+  if (isPontoSignedToday()) return;
+  
+  const now = new Date();
+  const timeStr = now.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+  
+  savePontoState({
+    signedDate: getTodayKey(),
+    signedTime: timeStr
+  });
+  
+  renderPontoButton();
+}
+
 // ============ Time Helpers ============
 function timeToMinutes(t) {
   const [h, m] = t.split(':').map(Number);
@@ -238,9 +355,8 @@ function getCurrentPeriodIndex() {
 function getNextPeriodInfo() {
   const now = new Date();
   const mins = now.getHours() * 60 + now.getMinutes();
-  const dayIdx = now.getDay(); // 0=Dom, 1=Seg ... 6=Sab
+  const dayIdx = now.getDay();
 
-  // Se for fim de semana, próxima aula é segunda
   if (dayIdx === 0 || dayIdx === 6) {
     const daysUntilMon = dayIdx === 0 ? 1 : 2;
     return { dayKey: 'seg', dayName: 'Segunda', periodIdx: 0, daysAway: daysUntilMon };
@@ -248,14 +364,12 @@ function getNextPeriodInfo() {
 
   const dayKey = DAY_KEYS[dayIdx - 1];
 
-  // Procura hoje
   for (let i = 0; i < state.periods.length; i++) {
     if (mins < timeToMinutes(state.periods[i].start)) {
       return { dayKey, dayName: DAYS[dayIdx - 1], periodIdx: i, daysAway: 0 };
     }
   }
 
-  // Procura nos próximos dias da semana
   for (let d = 1; d <= 5; d++) {
     const nextDayIdx = ((dayIdx - 1 + d) % 5);
     const nextDayKey = DAY_KEYS[nextDayIdx];
@@ -284,8 +398,8 @@ function renderCurrentClass() {
 
   if (dayIdx === 0 || dayIdx === 6) {
     container.innerHTML = `
-      <div class="text-slate-500 font-medium">Fim de semana</div>
-      <div class="text-sm text-slate-400 mt-1">Aproveite o descanso! 😴</div>
+      <div class="text-slate-500 font-medium">Fim de semana 😴</div>
+      <div class="text-sm text-slate-400 mt-1">Aproveite o descanso!</div>
     `;
     return;
   }
@@ -293,7 +407,6 @@ function renderCurrentClass() {
   if (periodIdx === -1) {
     const mins = now.getHours() * 60 + now.getMinutes();
     const firstStart = timeToMinutes(state.periods[0].start);
-    const lastEnd = timeToMinutes(state.periods[state.periods.length - 1].end);
     
     if (mins < firstStart) {
       container.innerHTML = `
@@ -302,8 +415,8 @@ function renderCurrentClass() {
       `;
     } else {
       container.innerHTML = `
-        <div class="text-slate-500 font-medium">Aulas encerradas por hoje</div>
-        <div class="text-sm text-slate-400 mt-1">Até amanhã! 👋</div>
+        <div class="text-slate-500 font-medium">Aulas encerradas por hoje 👋</div>
+        <div class="text-sm text-slate-400 mt-1">Até amanhã!</div>
       `;
     }
     return;
@@ -558,7 +671,6 @@ function deleteClass(id) {
   if (!confirm(`Excluir a turma "${cls.name}"? Ela será removida de todos os horários.`)) return;
   
   state.classes = state.classes.filter(c => c.id !== id);
-  // Remove from schedule
   Object.keys(state.schedule).forEach(key => {
     if (state.schedule[key] === id) delete state.schedule[key];
   });
@@ -576,7 +688,6 @@ function openSchedulePicker(key) {
     return;
   }
   
-  // Simple prompt-based picker using a custom modal
   showSchedulePickerModal(key);
 }
 
@@ -664,14 +775,16 @@ function renderAll() {
 
 loadState();
 renderAll();
+renderPontoButton();
 updateClock();
+
 setInterval(() => {
   updateClock();
   renderCurrentClass();
   renderNextClass();
+  renderPontoButton();
 }, 1000);
 
-// Close modals with Escape
 document.addEventListener('keydown', (e) => {
   if (e.key === 'Escape') {
     closeClassModal();
@@ -679,7 +792,6 @@ document.addEventListener('keydown', (e) => {
   }
 });
 
-// Close picker modal on backdrop click
 document.getElementById('classModal').addEventListener('click', (e) => {
   if (e.target.id === 'classModal') closeClassModal();
 });
