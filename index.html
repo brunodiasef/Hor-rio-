@@ -1,0 +1,689 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Meus Horários Escolares</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fontsource/inter@5.0.0/index.css">
+<style>
+  body { font-family: 'Inter', sans-serif; }
+  .pulse-dot {
+    animation: pulse 2s infinite;
+  }
+  @keyframes pulse {
+    0%, 100% { opacity: 1; transform: scale(1); }
+    50% { opacity: 0.5; transform: scale(1.2); }
+  }
+  .fade-in {
+    animation: fadeIn 0.3s ease-in;
+  }
+  @keyframes fadeIn {
+    from { opacity: 0; transform: translateY(-10px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+  .modal-backdrop {
+    backdrop-filter: blur(4px);
+  }
+  select, input {
+    font-family: 'Inter', sans-serif;
+  }
+</style>
+</head>
+<body class="bg-gradient-to-br from-slate-50 to-blue-50 min-h-screen">
+
+<div class="max-w-6xl mx-auto p-4 md:p-6">
+  
+  <!-- Header -->
+  <header class="mb-6 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+    <div>
+      <h1 class="text-3xl md:text-4xl font-bold text-slate-800 flex items-center gap-3">
+        <svg class="w-9 h-9 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/>
+        </svg>
+        Meus Horários
+      </h1>
+      <p class="text-slate-500 mt-1">Organize suas aulas da semana</p>
+    </div>
+    <div class="text-right">
+      <div id="currentDate" class="text-sm text-slate-500"></div>
+      <div id="currentTime" class="text-3xl font-bold text-slate-800 tabular-nums"></div>
+    </div>
+  </header>
+
+  <!-- Status Cards -->
+  <div class="grid md:grid-cols-2 gap-4 mb-6">
+    <!-- Aula Atual -->
+    <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-6">
+      <div class="flex items-center gap-2 mb-3">
+        <span class="pulse-dot inline-block w-2.5 h-2.5 rounded-full bg-green-500"></span>
+        <span class="text-xs font-semibold uppercase tracking-wider text-green-600">Agora</span>
+      </div>
+      <div id="currentClassInfo">
+        <div class="text-slate-400 text-sm">Carregando...</div>
+      </div>
+    </div>
+
+    <!-- Próxima Aula -->
+    <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-6">
+      <div class="flex items-center gap-2 mb-3">
+        <svg class="w-4 h-4 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
+        </svg>
+        <span class="text-xs font-semibold uppercase tracking-wider text-blue-600">Próxima Aula</span>
+      </div>
+      <div id="nextClassInfo">
+        <div class="text-slate-400 text-sm">Carregando...</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Tabs -->
+  <div class="flex gap-2 mb-4 border-b border-slate-200">
+    <button data-tab="schedule" class="tab-btn px-4 py-2.5 font-semibold text-blue-600 border-b-2 border-blue-600 -mb-px">
+      📅 Grade de Horários
+    </button>
+    <button data-tab="classes" class="tab-btn px-4 py-2.5 font-semibold text-slate-500 border-b-2 border-transparent -mb-px hover:text-slate-700">
+      🏫 Turmas
+    </button>
+    <button data-tab="settings" class="tab-btn px-4 py-2.5 font-semibold text-slate-500 border-b-2 border-transparent -mb-px hover:text-slate-700">
+      ⚙️ Horários das Aulas
+    </button>
+  </div>
+
+  <!-- Tab: Grade de Horários -->
+  <div id="tab-schedule" class="tab-content">
+    <div class="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+      <div class="overflow-x-auto">
+        <table class="w-full">
+          <thead class="bg-slate-50 border-b border-slate-200">
+            <tr>
+              <th class="p-3 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">Aula</th>
+              <th class="p-3 text-center text-xs font-semibold text-slate-600 uppercase tracking-wider">Seg</th>
+              <th class="p-3 text-center text-xs font-semibold text-slate-600 uppercase tracking-wider">Ter</th>
+              <th class="p-3 text-center text-xs font-semibold text-slate-600 uppercase tracking-wider">Qua</th>
+              <th class="p-3 text-center text-xs font-semibold text-slate-600 uppercase tracking-wider">Qui</th>
+              <th class="p-3 text-center text-xs font-semibold text-slate-600 uppercase tracking-wider">Sex</th>
+            </tr>
+          </thead>
+          <tbody id="scheduleBody"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- Tab: Turmas -->
+  <div id="tab-classes" class="tab-content hidden">
+    <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-6">
+      <div class="flex items-center justify-between mb-4">
+        <h2 class="text-xl font-bold text-slate-800">Turmas Cadastradas</h2>
+        <button onclick="openClassModal()" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-medium flex items-center gap-2 transition">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
+          </svg>
+          Nova Turma
+        </button>
+      </div>
+      <div id="classesList" class="grid sm:grid-cols-2 md:grid-cols-3 gap-3"></div>
+      <div id="emptyClasses" class="text-center py-10 text-slate-400">
+        <svg class="w-16 h-16 mx-auto mb-3 opacity-40" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"/>
+        </svg>
+        <p>Nenhuma turma cadastrada ainda.</p>
+        <p class="text-sm mt-1">Clique em "Nova Turma" para começar.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- Tab: Horários das Aulas -->
+  <div id="tab-settings" class="tab-content hidden">
+    <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-6">
+      <h2 class="text-xl font-bold text-slate-800 mb-1">Horários das Aulas</h2>
+      <p class="text-sm text-slate-500 mb-4">Defina o início e fim de cada uma das 7 aulas.</p>
+      <div id="periodsList" class="space-y-2"></div>
+    </div>
+  </div>
+
+</div>
+
+<!-- Modal Turma -->
+<div id="classModal" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4 modal-backdrop bg-black/40">
+  <div class="bg-white rounded-2xl shadow-xl max-w-md w-full p-6 fade-in">
+    <h3 id="classModalTitle" class="text-xl font-bold text-slate-800 mb-4">Nova Turma</h3>
+    <div class="space-y-3">
+      <div>
+        <label class="block text-sm font-medium text-slate-700 mb-1">Nome da Turma</label>
+        <input id="classNameInput" type="text" placeholder="Ex: 5ºA, 9ºB, 1ºEM" class="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none">
+      </div>
+      <div>
+        <label class="block text-sm font-medium text-slate-700 mb-1">Cor</label>
+        <div id="colorPicker" class="flex flex-wrap gap-2"></div>
+      </div>
+    </div>
+    <div class="flex gap-2 mt-6">
+      <button onclick="closeClassModal()" class="flex-1 px-4 py-2 border border-slate-300 rounded-lg font-medium text-slate-700 hover:bg-slate-50">Cancelar</button>
+      <button onclick="saveClass()" class="flex-1 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium">Salvar</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ============ State ============
+const DAYS = ['Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta'];
+const DAY_KEYS = ['seg', 'ter', 'qua', 'qui', 'sex'];
+const TOTAL_PERIODS = 7;
+
+const COLORS = [
+  '#3b82f6', '#ef4444', '#10b981', '#f59e0b', '#8b5cf6',
+  '#ec4899', '#06b6d4', '#f97316', '#6366f1', '#14b8a6'
+];
+
+const DEFAULT_PERIODS = [
+  { start: '07:00', end: '07:50' },
+  { start: '07:50', end: '08:40' },
+  { start: '08:40', end: '09:30' },
+  { start: '09:50', end: '10:40' },
+  { start: '10:40', end: '11:30' },
+  { start: '11:30', end: '12:20' },
+  { start: '13:30', end: '14:20' }
+];
+
+let state = {
+  classes: [],
+  schedule: {}, // { "seg-0": classId, "ter-2": classId, ... }
+  periods: []
+};
+
+let editingClassId = null;
+let selectedColor = COLORS[0];
+
+// ============ Persistence ============
+function loadState() {
+  try {
+    const saved = localStorage.getItem('schoolScheduleApp');
+    if (saved) {
+      const parsed = JSON.parse(saved);
+      state.classes = parsed.classes || [];
+      state.schedule = parsed.schedule || {};
+      state.periods = parsed.periods && parsed.periods.length === 7 ? parsed.periods : DEFAULT_PERIODS;
+    } else {
+      state.periods = DEFAULT_PERIODS;
+    }
+  } catch (e) {
+    state.periods = DEFAULT_PERIODS;
+  }
+}
+
+function saveState() {
+  localStorage.setItem('schoolScheduleApp', JSON.stringify(state));
+}
+
+// ============ Time Helpers ============
+function timeToMinutes(t) {
+  const [h, m] = t.split(':').map(Number);
+  return h * 60 + m;
+}
+
+function getCurrentPeriodIndex() {
+  const now = new Date();
+  const mins = now.getHours() * 60 + now.getMinutes();
+  for (let i = 0; i < state.periods.length; i++) {
+    const start = timeToMinutes(state.periods[i].start);
+    const end = timeToMinutes(state.periods[i].end);
+    if (mins >= start && mins < end) return i;
+  }
+  return -1;
+}
+
+function getNextPeriodInfo() {
+  const now = new Date();
+  const mins = now.getHours() * 60 + now.getMinutes();
+  const dayIdx = now.getDay(); // 0=Dom, 1=Seg ... 6=Sab
+
+  // Se for fim de semana, próxima aula é segunda
+  if (dayIdx === 0 || dayIdx === 6) {
+    const daysUntilMon = dayIdx === 0 ? 1 : 2;
+    return { dayKey: 'seg', dayName: 'Segunda', periodIdx: 0, daysAway: daysUntilMon };
+  }
+
+  const dayKey = DAY_KEYS[dayIdx - 1];
+
+  // Procura hoje
+  for (let i = 0; i < state.periods.length; i++) {
+    if (mins < timeToMinutes(state.periods[i].start)) {
+      return { dayKey, dayName: DAYS[dayIdx - 1], periodIdx: i, daysAway: 0 };
+    }
+  }
+
+  // Procura nos próximos dias da semana
+  for (let d = 1; d <= 5; d++) {
+    const nextDayIdx = ((dayIdx - 1 + d) % 5);
+    const nextDayKey = DAY_KEYS[nextDayIdx];
+    const nextDayName = DAYS[nextDayIdx];
+    return { dayKey: nextDayKey, dayName: nextDayName, periodIdx: 0, daysAway: d };
+  }
+
+  return null;
+}
+
+// ============ Rendering ============
+function updateClock() {
+  const now = new Date();
+  const days = ['Domingo', 'Segunda-feira', 'Terça-feira', 'Quarta-feira', 'Quinta-feira', 'Sexta-feira', 'Sábado'];
+  const months = ['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez'];
+  
+  document.getElementById('currentTime').textContent = now.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+  document.getElementById('currentDate').textContent = `${days[now.getDay()]}, ${now.getDate()} de ${months[now.getMonth()]} de ${now.getFullYear()}`;
+}
+
+function renderCurrentClass() {
+  const container = document.getElementById('currentClassInfo');
+  const periodIdx = getCurrentPeriodIndex();
+  const now = new Date();
+  const dayIdx = now.getDay();
+
+  if (dayIdx === 0 || dayIdx === 6) {
+    container.innerHTML = `
+      <div class="text-slate-500 font-medium">Fim de semana</div>
+      <div class="text-sm text-slate-400 mt-1">Aproveite o descanso! 😴</div>
+    `;
+    return;
+  }
+
+  if (periodIdx === -1) {
+    const mins = now.getHours() * 60 + now.getMinutes();
+    const firstStart = timeToMinutes(state.periods[0].start);
+    const lastEnd = timeToMinutes(state.periods[state.periods.length - 1].end);
+    
+    if (mins < firstStart) {
+      container.innerHTML = `
+        <div class="text-slate-500 font-medium">Aulas ainda não começaram</div>
+        <div class="text-sm text-slate-400 mt-1">Primeira aula às ${state.periods[0].start}</div>
+      `;
+    } else {
+      container.innerHTML = `
+        <div class="text-slate-500 font-medium">Aulas encerradas por hoje</div>
+        <div class="text-sm text-slate-400 mt-1">Até amanhã! 👋</div>
+      `;
+    }
+    return;
+  }
+
+  const dayKey = DAY_KEYS[dayIdx - 1];
+  const classId = state.schedule[`${dayKey}-${periodIdx}`];
+  const cls = state.classes.find(c => c.id === classId);
+  const period = state.periods[periodIdx];
+
+  if (cls) {
+    container.innerHTML = `
+      <div class="flex items-center gap-3">
+        <div class="w-12 h-12 rounded-xl flex items-center justify-center text-white font-bold text-lg" style="background:${cls.color}">
+          ${periodIdx + 1}
+        </div>
+        <div class="flex-1">
+          <div class="font-bold text-slate-800 text-lg">${cls.name}</div>
+          <div class="text-sm text-slate-500">${period.start} - ${period.end} • Aula ${periodIdx + 1} de 7</div>
+        </div>
+      </div>
+    `;
+  } else {
+    container.innerHTML = `
+      <div class="flex items-center gap-3">
+        <div class="w-12 h-12 rounded-xl flex items-center justify-center bg-slate-200 text-slate-500 font-bold text-lg">
+          ${periodIdx + 1}
+        </div>
+        <div class="flex-1">
+          <div class="font-bold text-slate-500 text-lg">Aula livre</div>
+          <div class="text-sm text-slate-400">${period.start} - ${period.end} • Aula ${periodIdx + 1} de 7</div>
+        </div>
+      </div>
+    `;
+  }
+}
+
+function renderNextClass() {
+  const container = document.getElementById('nextClassInfo');
+  const info = getNextPeriodInfo();
+
+  if (!info) {
+    container.innerHTML = `<div class="text-slate-400">—</div>`;
+    return;
+  }
+
+  const classId = state.schedule[`${info.dayKey}-${info.periodIdx}`];
+  const cls = state.classes.find(c => c.id === classId);
+  const period = state.periods[info.periodIdx];
+
+  let whenText = '';
+  if (info.daysAway === 0) whenText = 'Hoje';
+  else if (info.daysAway === 1) whenText = 'Amanhã';
+  else whenText = `Em ${info.daysAway} dias`;
+
+  if (cls) {
+    container.innerHTML = `
+      <div class="flex items-center gap-3">
+        <div class="w-12 h-12 rounded-xl flex items-center justify-center text-white font-bold text-lg" style="background:${cls.color}">
+          ${info.periodIdx + 1}
+        </div>
+        <div class="flex-1">
+          <div class="font-bold text-slate-800 text-lg">${cls.name}</div>
+          <div class="text-sm text-slate-500">${period.start} - ${period.end} • ${whenText} (${info.dayName})</div>
+        </div>
+      </div>
+    `;
+  } else {
+    container.innerHTML = `
+      <div class="flex items-center gap-3">
+        <div class="w-12 h-12 rounded-xl flex items-center justify-center bg-slate-200 text-slate-500 font-bold text-lg">
+          ${info.periodIdx + 1}
+        </div>
+        <div class="flex-1">
+          <div class="font-bold text-slate-500 text-lg">Aula livre</div>
+          <div class="text-sm text-slate-400">${period.start} - ${period.end} • ${whenText} (${info.dayName})</div>
+        </div>
+      </div>
+    `;
+  }
+}
+
+function renderSchedule() {
+  const tbody = document.getElementById('scheduleBody');
+  const now = new Date();
+  const currentDayIdx = now.getDay();
+  const currentPeriodIdx = getCurrentPeriodIndex();
+
+  let html = '';
+  for (let p = 0; p < TOTAL_PERIODS; p++) {
+    html += `<tr class="border-b border-slate-100 hover:bg-slate-50/50">`;
+    html += `<td class="p-3">
+      <div class="font-semibold text-slate-700">Aula ${p + 1}</div>
+      <div class="text-xs text-slate-400">${state.periods[p].start} - ${state.periods[p].end}</div>
+    </td>`;
+    
+    for (let d = 0; d < 5; d++) {
+      const key = `${DAY_KEYS[d]}-${p}`;
+      const classId = state.schedule[key];
+      const cls = state.classes.find(c => c.id === classId);
+      
+      const isCurrent = currentDayIdx >= 1 && currentDayIdx <= 5 && (currentDayIdx - 1) === d && currentPeriodIdx === p;
+      const borderClass = isCurrent ? 'ring-2 ring-blue-500 ring-inset' : '';
+      
+      if (cls) {
+        html += `<td class="p-2">
+          <button onclick="openSchedulePicker('${key}')" class="w-full px-2 py-2.5 rounded-lg text-white font-medium text-sm transition hover:opacity-90 ${borderClass}" style="background:${cls.color}">
+            ${cls.name}
+          </button>
+        </td>`;
+      } else {
+        html += `<td class="p-2">
+          <button onclick="openSchedulePicker('${key}')" class="w-full px-2 py-2.5 rounded-lg border-2 border-dashed border-slate-200 text-slate-400 text-sm hover:border-blue-400 hover:text-blue-500 transition ${borderClass}">
+            +
+          </button>
+        </td>`;
+      }
+    }
+    html += `</tr>`;
+  }
+  tbody.innerHTML = html;
+}
+
+function renderClasses() {
+  const list = document.getElementById('classesList');
+  const empty = document.getElementById('emptyClasses');
+  
+  if (state.classes.length === 0) {
+    list.innerHTML = '';
+    empty.classList.remove('hidden');
+    return;
+  }
+  
+  empty.classList.add('hidden');
+  list.innerHTML = state.classes.map(cls => `
+    <div class="flex items-center gap-3 p-3 rounded-xl border border-slate-200 hover:shadow-sm transition">
+      <div class="w-10 h-10 rounded-lg flex items-center justify-center text-white font-bold" style="background:${cls.color}">
+        ${cls.name.charAt(0).toUpperCase()}
+      </div>
+      <div class="flex-1 min-w-0">
+        <div class="font-semibold text-slate-800 truncate">${cls.name}</div>
+        <div class="text-xs text-slate-400">${countClassUsage(cls.id)} aulas na semana</div>
+      </div>
+      <button onclick="editClass('${cls.id}')" class="p-1.5 text-slate-400 hover:text-blue-600 transition">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
+      </button>
+      <button onclick="deleteClass('${cls.id}')" class="p-1.5 text-slate-400 hover:text-red-600 transition">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6M1 7h22M9 7V4a1 1 0 011-1h4a1 1 0 011 1v3"/></svg>
+      </button>
+    </div>
+  `).join('');
+}
+
+function countClassUsage(classId) {
+  return Object.values(state.schedule).filter(id => id === classId).length;
+}
+
+function renderPeriods() {
+  const container = document.getElementById('periodsList');
+  container.innerHTML = state.periods.map((p, i) => `
+    <div class="flex items-center gap-3 p-3 bg-slate-50 rounded-lg">
+      <div class="w-10 h-10 rounded-lg bg-blue-100 text-blue-700 flex items-center justify-center font-bold">
+        ${i + 1}
+      </div>
+      <div class="flex-1 flex items-center gap-2">
+        <input type="time" value="${p.start}" onchange="updatePeriod(${i}, 'start', this.value)" class="px-3 py-1.5 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none">
+        <span class="text-slate-400">até</span>
+        <input type="time" value="${p.end}" onchange="updatePeriod(${i}, 'end', this.value)" class="px-3 py-1.5 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none">
+      </div>
+    </div>
+  `).join('');
+}
+
+// ============ Actions ============
+function updatePeriod(idx, field, value) {
+  state.periods[idx][field] = value;
+  saveState();
+  renderSchedule();
+  renderCurrentClass();
+  renderNextClass();
+}
+
+function openClassModal(classId = null) {
+  editingClassId = classId;
+  const modal = document.getElementById('classModal');
+  const title = document.getElementById('classModalTitle');
+  const input = document.getElementById('classNameInput');
+  
+  if (classId) {
+    const cls = state.classes.find(c => c.id === classId);
+    title.textContent = 'Editar Turma';
+    input.value = cls.name;
+    selectedColor = cls.color;
+  } else {
+    title.textContent = 'Nova Turma';
+    input.value = '';
+    selectedColor = COLORS[state.classes.length % COLORS.length];
+  }
+  
+  renderColorPicker();
+  modal.classList.remove('hidden');
+  setTimeout(() => input.focus(), 100);
+}
+
+function closeClassModal() {
+  document.getElementById('classModal').classList.add('hidden');
+  editingClassId = null;
+}
+
+function renderColorPicker() {
+  const container = document.getElementById('colorPicker');
+  container.innerHTML = COLORS.map(c => `
+    <button onclick="selectColor('${c}')" class="w-8 h-8 rounded-full transition-transform ${c === selectedColor ? 'ring-2 ring-offset-2 ring-slate-800 scale-110' : 'hover:scale-110'}" style="background:${c}"></button>
+  `).join('');
+}
+
+function selectColor(c) {
+  selectedColor = c;
+  renderColorPicker();
+}
+
+function saveClass() {
+  const name = document.getElementById('classNameInput').value.trim();
+  if (!name) {
+    document.getElementById('classNameInput').focus();
+    return;
+  }
+  
+  if (editingClassId) {
+    const cls = state.classes.find(c => c.id === editingClassId);
+    cls.name = name;
+    cls.color = selectedColor;
+  } else {
+    state.classes.push({
+      id: 'c_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5),
+      name,
+      color: selectedColor
+    });
+  }
+  
+  saveState();
+  closeClassModal();
+  renderAll();
+}
+
+function editClass(id) {
+  openClassModal(id);
+}
+
+function deleteClass(id) {
+  const cls = state.classes.find(c => c.id === id);
+  if (!confirm(`Excluir a turma "${cls.name}"? Ela será removida de todos os horários.`)) return;
+  
+  state.classes = state.classes.filter(c => c.id !== id);
+  // Remove from schedule
+  Object.keys(state.schedule).forEach(key => {
+    if (state.schedule[key] === id) delete state.schedule[key];
+  });
+  
+  saveState();
+  renderAll();
+}
+
+function openSchedulePicker(key) {
+  if (state.classes.length === 0) {
+    if (confirm('Você precisa cadastrar pelo menos uma turma primeiro. Ir para turmas agora?')) {
+      switchTab('classes');
+      setTimeout(() => openClassModal(), 300);
+    }
+    return;
+  }
+  
+  // Simple prompt-based picker using a custom modal
+  showSchedulePickerModal(key);
+}
+
+function showSchedulePickerModal(key) {
+  const existing = document.getElementById('pickerModal');
+  if (existing) existing.remove();
+  
+  const currentClassId = state.schedule[key] || null;
+  
+  const modal = document.createElement('div');
+  modal.id = 'pickerModal';
+  modal.className = 'fixed inset-0 z-50 flex items-center justify-center p-4 modal-backdrop bg-black/40';
+  
+  modal.innerHTML = `
+    <div class="bg-white rounded-2xl shadow-xl max-w-md w-full p-6 fade-in max-h-[80vh] overflow-y-auto">
+      <h3 class="text-xl font-bold text-slate-800 mb-1">Escolher Turma</h3>
+      <p class="text-sm text-slate-500 mb-4">Selecione a turma para este horário ou deixe livre.</p>
+      <div class="space-y-2">
+        <button onclick="setSchedule('${key}', null)" class="w-full flex items-center gap-3 p-3 rounded-lg border-2 ${!currentClassId ? 'border-blue-500 bg-blue-50' : 'border-slate-200'} hover:border-slate-300 transition">
+          <div class="w-8 h-8 rounded-lg bg-slate-100 flex items-center justify-center text-slate-400 font-bold text-sm">∅</div>
+          <span class="font-medium text-slate-600">Aula livre</span>
+        </button>
+        ${state.classes.map(cls => `
+          <button onclick="setSchedule('${key}', '${cls.id}')" class="w-full flex items-center gap-3 p-3 rounded-lg border-2 ${currentClassId === cls.id ? 'border-blue-500 bg-blue-50' : 'border-slate-200'} hover:border-slate-300 transition">
+            <div class="w-8 h-8 rounded-lg flex items-center justify-center text-white font-bold text-sm" style="background:${cls.color}">
+              ${cls.name.charAt(0).toUpperCase()}
+            </div>
+            <span class="font-medium text-slate-700">${cls.name}</span>
+          </button>
+        `).join('')}
+      </div>
+      <button onclick="closePickerModal()" class="w-full mt-4 px-4 py-2 border border-slate-300 rounded-lg font-medium text-slate-700 hover:bg-slate-50">Cancelar</button>
+    </div>
+  `;
+  
+  document.body.appendChild(modal);
+  modal.addEventListener('click', (e) => {
+    if (e.target === modal) closePickerModal();
+  });
+}
+
+function closePickerModal() {
+  const m = document.getElementById('pickerModal');
+  if (m) m.remove();
+}
+
+function setSchedule(key, classId) {
+  if (classId) {
+    state.schedule[key] = classId;
+  } else {
+    delete state.schedule[key];
+  }
+  saveState();
+  closePickerModal();
+  renderAll();
+}
+
+// ============ Tabs ============
+function switchTab(tabName) {
+  document.querySelectorAll('.tab-btn').forEach(btn => {
+    if (btn.dataset.tab === tabName) {
+      btn.classList.remove('text-slate-500', 'border-transparent');
+      btn.classList.add('text-blue-600', 'border-blue-600');
+    } else {
+      btn.classList.add('text-slate-500', 'border-transparent');
+      btn.classList.remove('text-blue-600', 'border-blue-600');
+    }
+  });
+  document.querySelectorAll('.tab-content').forEach(c => c.classList.add('hidden'));
+  document.getElementById('tab-' + tabName).classList.remove('hidden');
+}
+
+document.querySelectorAll('.tab-btn').forEach(btn => {
+  btn.addEventListener('click', () => switchTab(btn.dataset.tab));
+});
+
+// ============ Init ============
+function renderAll() {
+  renderSchedule();
+  renderClasses();
+  renderPeriods();
+  renderCurrentClass();
+  renderNextClass();
+}
+
+loadState();
+renderAll();
+updateClock();
+setInterval(() => {
+  updateClock();
+  renderCurrentClass();
+  renderNextClass();
+}, 1000);
+
+// Close modals with Escape
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape') {
+    closeClassModal();
+    closePickerModal();
+  }
+});
+
+// Close picker modal on backdrop click
+document.getElementById('classModal').addEventListener('click', (e) => {
+  if (e.target.id === 'classModal') closeClassModal();
+});
+</script>
+
+</body>
+</html>
