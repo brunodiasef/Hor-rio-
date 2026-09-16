@@ -1,25 +1,13 @@
 /* ============================================================
    DADOS DO APP — Meus Horários
-   ------------------------------------------------------------
-   Este arquivo guarda SUAS turmas, SUA grade e SEUS horários.
-   O index.html só cuida do visual. Você pode trocar o layout
-   do index.html à vontade que este arquivo continua igual.
-
-   Como atualizar:
-   1) Edite as turmas/grade dentro do app, no navegador.
-   2) Vá na aba "Configurações" > "Baixar dados.js".
-   3) Substitua este arquivo no GitHub pelo baixado.
-
-   (Também dá para editar na mão aqui embaixo, se preferir.)
+   Gerado em 15/09/2026, 23:04:04
+   Substitua o dados.js do GitHub por este arquivo.
    ============================================================ */
 
 const DADOS = {
 
-  // Sempre que você baixar um dados.js novo, este número sobe.
-  // É o que avisa ao app: "o arquivo é mais novo que o navegador".
-  versao: 1,
+  versao: 2,
 
-  // Horário de início e fim das 7 aulas
   periods: [
     { start: '07:00', end: '07:50' },
     { start: '07:50', end: '08:40' },
@@ -30,15 +18,56 @@ const DADOS = {
     { start: '13:30', end: '14:20' }
   ],
 
-  // Suas turmas. O "id" é o que liga a turma à grade abaixo.
-  // Exemplo:
-  // { id: 'c_6a', name: '6ºA', color: '#3b82f6' },
-  classes: [],
+  classes: [
+    { id: 'c_1789523575305_rsj44', name: '7º01', color: '#3b82f6' },
+    { id: 'c_1789523580325_9zi4z', name: '7º02', color: '#ef4444' },
+    { id: 'c_1789523585046_k8q8g', name: '7º03', color: '#10b981' },
+    { id: 'c_1789523774085_d9o3m', name: '8º01', color: '#8b5cf6' },
+    { id: 'c_1789523798568_w3g6e', name: '8º02', color: '#ec4899' },
+    { id: 'c_1789523804758_hxw3c', name: '8º03', color: '#06b6d4' },
+    { id: 'c_1789523814837_bl663', name: '9º01', color: '#f97316' },
+    { id: 'c_1789523822536_uqe49', name: '9º02', color: '#6366f1' },
+    { id: 'c_1789523827910_1jkrm', name: '9º03', color: '#14b8a6' },
+    { id: 'c_1789523847174_0rfz1', name: 'PL', color: '#06b6d4' },
+    { id: 'c_1789523910823_yykka', name: 'ELETIVA', color: '#3b82f6' }
+  ],
 
-  // A grade. A chave é "dia-numeroDaAula", começando do ZERO.
-  // Ou seja: 'seg-0' = segunda, 1ª aula / 'sex-6' = sexta, 7ª aula.
-  // Exemplo:
-  // 'seg-0': 'c_6a',
-  schedule: {}
+  schedule: {
+    'qua-0': 'c_1789523804758_hxw3c',
+    'qua-1': 'c_1789523774085_d9o3m',
+    'qua-2': 'c_1789523814837_bl663',
+    'qua-3': 'c_1789523827910_1jkrm',
+    'qua-4': 'c_1789523585046_k8q8g',
+    'qua-5': 'c_1789523847174_0rfz1',
+    'qua-6': 'c_1789523847174_0rfz1',
+    'qui-0': 'c_1789523847174_0rfz1',
+    'qui-1': 'c_1789523847174_0rfz1',
+    'qui-2': 'c_1789523847174_0rfz1',
+    'qui-3': 'c_1789523847174_0rfz1',
+    'qui-4': 'c_1789523847174_0rfz1',
+    'qui-5': 'c_1789523847174_0rfz1',
+    'qui-6': 'c_1789523847174_0rfz1',
+    'seg-0': 'c_1789523822536_uqe49',
+    'seg-1': 'c_1789523847174_0rfz1',
+    'seg-2': 'c_1789523847174_0rfz1',
+    'seg-3': 'c_1789523847174_0rfz1',
+    'seg-4': 'c_1789523804758_hxw3c',
+    'seg-5': 'c_1789523847174_0rfz1',
+    'seg-6': 'c_1789523798568_w3g6e',
+    'sex-0': 'c_1789523585046_k8q8g',
+    'sex-1': 'c_1789523575305_rsj44',
+    'sex-2': 'c_1789523580325_9zi4z',
+    'sex-3': 'c_1789523847174_0rfz1',
+    'sex-4': 'c_1789523847174_0rfz1',
+    'sex-5': 'c_1789523910823_yykka',
+    'sex-6': 'c_1789523910823_yykka',
+    'ter-0': 'c_1789523822536_uqe49',
+    'ter-1': 'c_1789523798568_w3g6e',
+    'ter-2': 'c_1789523774085_d9o3m',
+    'ter-3': 'c_1789523575305_rsj44',
+    'ter-4': 'c_1789523827910_1jkrm',
+    'ter-5': 'c_1789523580325_9zi4z',
+    'ter-6': 'c_1789523814837_bl663'
+  }
 
 };
