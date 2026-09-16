@@ -28,35 +28,12 @@
   select, input {
     font-family: 'Inter', sans-serif;
   }
-  .ponto-btn {
-    transition: all 0.3s ease;
-  }
-  .ponto-btn:active {
-    transform: scale(0.97);
-  }
-  .ponto-signed {
-    background: linear-gradient(135deg, #10b981, #059669);
-  }
-  .ponto-unsigned {
-    background: linear-gradient(135deg, #3b82f6, #2563eb);
-  }
-  .ponto-unsigned:hover {
-    background: linear-gradient(135deg, #2563eb, #1d4ed8);
-  }
-  @keyframes checkmark {
-    0% { transform: scale(0); opacity: 0; }
-    50% { transform: scale(1.3); }
-    100% { transform: scale(1); opacity: 1; }
-  }
-  .checkmark-anim {
-    animation: checkmark 0.4s ease-out forwards;
-  }
 </style>
 </head>
 <body class="bg-gradient-to-br from-slate-50 to-blue-50 min-h-screen">
 
 <div class="max-w-6xl mx-auto p-4 md:p-6">
-  
+
   <!-- Header -->
   <header class="mb-6 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
     <div>
@@ -74,8 +51,26 @@
     </div>
   </header>
 
+  <!-- Dados: Exportar / Importar -->
+  <div class="mb-6 bg-white rounded-2xl shadow-sm border border-slate-200 px-4 py-3">
+    <div class="flex flex-wrap items-center gap-3">
+      <svg class="w-5 h-5 text-slate-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v14a2 2 0 002 2h8m6-9l-3 3m0 0l-3-3m3 3V9"/>
+      </svg>
+      <span class="text-sm text-slate-500 flex-1 min-w-[220px]">
+        Turmas e horários ficam em <code class="text-xs bg-slate-100 px-1.5 py-0.5 rounded">dados-horarios.json</code>, separado deste arquivo — dá para mudar cor, fonte e layout aqui sem perder nada.
+      </span>
+      <button id="btnExportar" onclick="exportData()" class="text-sm px-3 py-1.5 rounded-lg border border-slate-300 text-slate-700 hover:bg-slate-50 font-medium whitespace-nowrap">📤 Exportar dados</button>
+      <label class="text-sm px-3 py-1.5 rounded-lg border border-slate-300 text-slate-700 hover:bg-slate-50 font-medium cursor-pointer whitespace-nowrap">
+        📥 Importar dados
+        <input type="file" accept="application/json" class="hidden" onchange="importDataFile(this)">
+      </label>
+    </div>
+    <div id="statusLinha" class="mt-2 text-xs flex items-center gap-1.5"></div>
+  </div>
+
   <!-- Status Cards -->
-  <div class="grid md:grid-cols-2 gap-4 mb-4">
+  <div class="grid md:grid-cols-2 gap-4 mb-6">
     <!-- Aula Atual -->
     <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-6">
       <div class="flex items-center gap-2 mb-3">
@@ -98,26 +93,6 @@
       <div id="nextClassInfo">
         <div class="text-slate-400 text-sm">Carregando...</div>
       </div>
-    </div>
-  </div>
-
-  <!-- Botão Assinar Ponto -->
-  <div class="mb-6">
-    <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-5 flex flex-col sm:flex-row items-center justify-between gap-4">
-      <div class="flex items-center gap-3">
-        <div id="pontoIcon" class="w-12 h-12 rounded-xl flex items-center justify-center bg-blue-100">
-          <svg id="pontoIconSvg" class="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
-          </svg>
-        </div>
-        <div>
-          <div id="pontoStatus" class="font-bold text-slate-800">Aguardando assinatura</div>
-          <div id="pontoDetail" class="text-sm text-slate-500">Clique no botão para registrar sua presença hoje</div>
-        </div>
-      </div>
-      <button id="pontoBtn" onclick="assinarPonto()" class="ponto-btn ponto-unsigned text-white font-bold text-base px-8 py-3 rounded-xl shadow-md cursor-pointer whitespace-nowrap">
-        ASSINAR O PONTO
-      </button>
     </div>
   </div>
 
@@ -215,6 +190,7 @@
 const DAYS = ['Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta'];
 const DAY_KEYS = ['seg', 'ter', 'qua', 'qui', 'sex'];
 const TOTAL_PERIODS = 7;
+const DATA_FILE = 'dados-horarios.json';
 
 const COLORS = [
   '#3b82f6', '#ef4444', '#10b981', '#f59e0b', '#8b5cf6',
@@ -233,107 +209,180 @@ const DEFAULT_PERIODS = [
 
 let state = {
   classes: [],
-  schedule: {},
+  schedule: {}, // { "seg-0": classId, "ter-2": classId, ... }
   periods: []
 };
 
 let editingClassId = null;
 let selectedColor = COLORS[0];
 
+// Vira true quando você altera algo e o dados-horarios.json ainda não foi atualizado
+let alteracoesPendentes = false;
+
 // ============ Persistence ============
-function loadState() {
+// As turmas e horários vivem em DATA_FILE (dados-horarios.json), um arquivo
+// separado deste index.html. Assim, mudar cor/fonte/layout aqui nunca apaga
+// o que foi cadastrado. O localStorage continua funcionando como cópia local
+// automática, para o app não depender de internet no dia a dia.
+async function loadState() {
+  // 1) tenta carregar do arquivo externo (fonte "oficial" dos dados)
   try {
-    const saved = localStorage.getItem('schoolScheduleApp');
-    if (saved) {
-      const parsed = JSON.parse(saved);
-      state.classes = parsed.classes || [];
-      state.schedule = parsed.schedule || {};
-      state.periods = parsed.periods && parsed.periods.length === 7 ? parsed.periods : DEFAULT_PERIODS;
-    } else {
-      state.periods = DEFAULT_PERIODS;
+    const resp = await fetch(`${DATA_FILE}?t=${Date.now()}`, { cache: 'no-store' });
+    if (resp.ok) {
+      const data = await resp.json();
+      const doArquivo = {
+        classes: data.classes || [],
+        schedule: data.schedule || {},
+        periods: (data.periods && data.periods.length === 7) ? data.periods : DEFAULT_PERIODS
+      };
+
+      // Se o navegador tem alterações mais recentes que ainda não foram para o
+      // arquivo, elas têm prioridade — senão você perderia o que acabou de fazer.
+      const local = lerLocal();
+      if (local && local.alteradoEm && (!data.exportadoEm || local.alteradoEm > data.exportadoEm)) {
+        state.classes = local.classes;
+        state.schedule = local.schedule;
+        state.periods = local.periods;
+        alteracoesPendentes = true;
+        atualizarStatus('pendente');
+        return;
+      }
+
+      state.classes = doArquivo.classes;
+      state.schedule = doArquivo.schedule;
+      state.periods = doArquivo.periods;
+      salvarLocal(false);
+      atualizarStatus('arquivo');
+      return;
     }
   } catch (e) {
-    state.periods = DEFAULT_PERIODS;
+    // arquivo ainda não existe (ou a página foi aberta direto do disco) — usa a cópia local
   }
-}
 
-function saveState() {
-  localStorage.setItem('schoolScheduleApp', JSON.stringify(state));
-}
-
-// ============ Ponto (Attendance) ============
-function getTodayKey() {
-  const now = new Date();
-  return now.getFullYear() + '-' + String(now.getMonth() + 1).padStart(2, '0') + '-' + String(now.getDate()).padStart(2, '0');
-}
-
-function getPontoState() {
-  try {
-    const saved = localStorage.getItem('pontoState');
-    if (saved) return JSON.parse(saved);
-  } catch (e) {}
-  return { signedDate: null, signedTime: null };
-}
-
-function savePontoState(pontoState) {
-  localStorage.setItem('pontoState', JSON.stringify(pontoState));
-}
-
-function isPontoSignedToday() {
-  const ponto = getPontoState();
-  return ponto.signedDate === getTodayKey();
-}
-
-function renderPontoButton() {
-  const btn = document.getElementById('pontoBtn');
-  const icon = document.getElementById('pontoIcon');
-  const iconSvg = document.getElementById('pontoIconSvg');
-  const status = document.getElementById('pontoStatus');
-  const detail = document.getElementById('pontoDetail');
-
-  if (isPontoSignedToday()) {
-    const ponto = getPontoState();
-    btn.textContent = 'PONTO ASSINADO';
-    btn.className = 'ponto-btn ponto-signed text-white font-bold text-base px-8 py-3 rounded-xl shadow-md cursor-default whitespace-nowrap';
-    btn.disabled = true;
-    
-    icon.className = 'w-12 h-12 rounded-xl flex items-center justify-center bg-green-100';
-    iconSvg.innerHTML = '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>';
-    iconSvg.className = 'w-6 h-6 text-green-600 checkmark-anim';
-    
-    status.textContent = 'Presença registrada';
-    status.className = 'font-bold text-green-700';
-    detail.textContent = 'Registrado às ' + ponto.signedTime;
-    detail.className = 'text-sm text-slate-500';
+  // 2) fallback: cópia local do navegador
+  const local = lerLocal();
+  if (local) {
+    state.classes = local.classes;
+    state.schedule = local.schedule;
+    state.periods = local.periods;
+    atualizarStatus(local.classes.length ? 'semArquivo' : 'vazio');
   } else {
-    btn.textContent = 'ASSINAR O PONTO';
-    btn.className = 'ponto-btn ponto-unsigned text-white font-bold text-base px-8 py-3 rounded-xl shadow-md cursor-pointer whitespace-nowrap';
-    btn.disabled = false;
-    
-    icon.className = 'w-12 h-12 rounded-xl flex items-center justify-center bg-blue-100';
-    iconSvg.innerHTML = '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>';
-    iconSvg.className = 'w-6 h-6 text-blue-600';
-    
-    status.textContent = 'Aguardando assinatura';
-    status.className = 'font-bold text-slate-800';
-    detail.textContent = 'Clique no botão para registrar sua presença hoje';
-    detail.className = 'text-sm text-slate-500';
+    state.periods = DEFAULT_PERIODS;
+    atualizarStatus('vazio');
   }
 }
 
-function assinarPonto() {
-  if (isPontoSignedToday()) return;
-  
-  const now = new Date();
-  const timeStr = now.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
-  
-  savePontoState({
-    signedDate: getTodayKey(),
-    signedTime: timeStr
-  });
-  
-  renderPontoButton();
+function lerLocal() {
+  try {
+    const saved = localStorage.getItem('schoolScheduleApp');
+    if (!saved) return null;
+    const parsed = JSON.parse(saved);
+    return {
+      classes: parsed.classes || [],
+      schedule: parsed.schedule || {},
+      periods: (parsed.periods && parsed.periods.length === 7) ? parsed.periods : DEFAULT_PERIODS,
+      alteradoEm: parsed.alteradoEm || null
+    };
+  } catch (e) {
+    return null;
+  }
 }
+
+function salvarLocal(marcarAlteracao = true) {
+  try {
+    localStorage.setItem('schoolScheduleApp', JSON.stringify({
+      classes: state.classes,
+      schedule: state.schedule,
+      periods: state.periods,
+      alteradoEm: marcarAlteracao ? new Date().toISOString() : null
+    }));
+  } catch (e) {}
+}
+
+// Chamado por todas as ações do app (nova turma, grade, horários)
+function saveState() {
+  salvarLocal(true);
+  alteracoesPendentes = true;
+  atualizarStatus('pendente');
+}
+
+function atualizarStatus(situacao) {
+  const linha = document.getElementById('statusLinha');
+  const botao = document.getElementById('btnExportar');
+  if (!linha || !botao) return;
+
+  const mapa = {
+    arquivo:    { cor: 'bg-green-500',  classe: 'text-slate-400', txt: `Dados carregados de ${DATA_FILE} — tudo em dia.` },
+    pendente:   { cor: 'bg-amber-400',  classe: 'text-amber-600 font-medium', txt: `Alterações salvas neste aparelho. Clique em "Exportar dados" e suba o ${DATA_FILE} para o GitHub para deixá-las definitivas.` },
+    semArquivo: { cor: 'bg-slate-400',  classe: 'text-slate-400', txt: `Usando a cópia deste aparelho — o ${DATA_FILE} ainda não está no site. Exporte e suba o arquivo para o GitHub.` },
+    vazio:      { cor: 'bg-slate-300',  classe: 'text-slate-400', txt: 'Nenhum dado ainda — cadastre suas turmas para começar.' }
+  };
+
+  const info = mapa[situacao] || mapa.vazio;
+  linha.className = `mt-2 text-xs flex items-center gap-1.5 ${info.classe}`;
+  linha.innerHTML = `<span class="inline-block w-2 h-2 rounded-full ${info.cor} shrink-0"></span><span>${info.txt}</span>`;
+
+  // Destaca o botão quando há algo para exportar
+  if (situacao === 'pendente' || situacao === 'semArquivo') {
+    botao.className = 'text-sm px-3 py-1.5 rounded-lg bg-amber-500 hover:bg-amber-600 text-white font-medium whitespace-nowrap';
+  } else {
+    botao.className = 'text-sm px-3 py-1.5 rounded-lg border border-slate-300 text-slate-700 hover:bg-slate-50 font-medium whitespace-nowrap';
+  }
+}
+
+// ============ Exportar / Importar dados ============
+function exportData() {
+  const data = {
+    classes: state.classes,
+    schedule: state.schedule,
+    periods: state.periods,
+    exportadoEm: new Date().toISOString()
+  };
+  const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = DATA_FILE;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+
+  alteracoesPendentes = false;
+  salvarLocal(false);
+  atualizarStatus('arquivo');
+}
+
+function importDataFile(inputEl) {
+  const file = inputEl.files[0];
+  if (!file) return;
+
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    try {
+      const data = JSON.parse(e.target.result);
+      state.classes = data.classes || [];
+      state.schedule = data.schedule || {};
+      state.periods = (data.periods && data.periods.length === 7) ? data.periods : DEFAULT_PERIODS;
+      salvarLocal(false);
+      alteracoesPendentes = false;
+      atualizarStatus('arquivo');
+      renderAll();
+    } catch (err) {
+      alert(`Não foi possível ler esse arquivo. Verifique se é um ${DATA_FILE} exportado por este app.`);
+    }
+  };
+  reader.readAsText(file);
+  inputEl.value = '';
+}
+
+// Avisa se você fechar a página com alterações que ainda não foram exportadas
+window.addEventListener('beforeunload', (e) => {
+  if (alteracoesPendentes) {
+    e.preventDefault();
+    e.returnValue = '';
+  }
+});
 
 // ============ Time Helpers ============
 function timeToMinutes(t) {
@@ -355,8 +404,9 @@ function getCurrentPeriodIndex() {
 function getNextPeriodInfo() {
   const now = new Date();
   const mins = now.getHours() * 60 + now.getMinutes();
-  const dayIdx = now.getDay();
+  const dayIdx = now.getDay(); // 0=Dom, 1=Seg ... 6=Sab
 
+  // Se for fim de semana, próxima aula é segunda
   if (dayIdx === 0 || dayIdx === 6) {
     const daysUntilMon = dayIdx === 0 ? 1 : 2;
     return { dayKey: 'seg', dayName: 'Segunda', periodIdx: 0, daysAway: daysUntilMon };
@@ -364,12 +414,14 @@ function getNextPeriodInfo() {
 
   const dayKey = DAY_KEYS[dayIdx - 1];
 
+  // Procura hoje
   for (let i = 0; i < state.periods.length; i++) {
     if (mins < timeToMinutes(state.periods[i].start)) {
       return { dayKey, dayName: DAYS[dayIdx - 1], periodIdx: i, daysAway: 0 };
     }
   }
 
+  // Procura nos próximos dias da semana
   for (let d = 1; d <= 5; d++) {
     const nextDayIdx = ((dayIdx - 1 + d) % 5);
     const nextDayKey = DAY_KEYS[nextDayIdx];
@@ -385,7 +437,7 @@ function updateClock() {
   const now = new Date();
   const days = ['Domingo', 'Segunda-feira', 'Terça-feira', 'Quarta-feira', 'Quinta-feira', 'Sexta-feira', 'Sábado'];
   const months = ['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez'];
-  
+
   document.getElementById('currentTime').textContent = now.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
   document.getElementById('currentDate').textContent = `${days[now.getDay()]}, ${now.getDate()} de ${months[now.getMonth()]} de ${now.getFullYear()}`;
 }
@@ -398,8 +450,8 @@ function renderCurrentClass() {
 
   if (dayIdx === 0 || dayIdx === 6) {
     container.innerHTML = `
-      <div class="text-slate-500 font-medium">Fim de semana 😴</div>
-      <div class="text-sm text-slate-400 mt-1">Aproveite o descanso!</div>
+      <div class="text-slate-500 font-medium">Fim de semana</div>
+      <div class="text-sm text-slate-400 mt-1">Aproveite o descanso! 😴</div>
     `;
     return;
   }
@@ -407,7 +459,8 @@ function renderCurrentClass() {
   if (periodIdx === -1) {
     const mins = now.getHours() * 60 + now.getMinutes();
     const firstStart = timeToMinutes(state.periods[0].start);
-    
+    const lastEnd = timeToMinutes(state.periods[state.periods.length - 1].end);
+
     if (mins < firstStart) {
       container.innerHTML = `
         <div class="text-slate-500 font-medium">Aulas ainda não começaram</div>
@@ -415,8 +468,8 @@ function renderCurrentClass() {
       `;
     } else {
       container.innerHTML = `
-        <div class="text-slate-500 font-medium">Aulas encerradas por hoje 👋</div>
-        <div class="text-sm text-slate-400 mt-1">Até amanhã!</div>
+        <div class="text-slate-500 font-medium">Aulas encerradas por hoje</div>
+        <div class="text-sm text-slate-400 mt-1">Até amanhã! 👋</div>
       `;
     }
     return;
@@ -512,15 +565,15 @@ function renderSchedule() {
       <div class="font-semibold text-slate-700">Aula ${p + 1}</div>
       <div class="text-xs text-slate-400">${state.periods[p].start} - ${state.periods[p].end}</div>
     </td>`;
-    
+
     for (let d = 0; d < 5; d++) {
       const key = `${DAY_KEYS[d]}-${p}`;
       const classId = state.schedule[key];
       const cls = state.classes.find(c => c.id === classId);
-      
+
       const isCurrent = currentDayIdx >= 1 && currentDayIdx <= 5 && (currentDayIdx - 1) === d && currentPeriodIdx === p;
       const borderClass = isCurrent ? 'ring-2 ring-blue-500 ring-inset' : '';
-      
+
       if (cls) {
         html += `<td class="p-2">
           <button onclick="openSchedulePicker('${key}')" class="w-full px-2 py-2.5 rounded-lg text-white font-medium text-sm transition hover:opacity-90 ${borderClass}" style="background:${cls.color}">
@@ -543,13 +596,13 @@ function renderSchedule() {
 function renderClasses() {
   const list = document.getElementById('classesList');
   const empty = document.getElementById('emptyClasses');
-  
+
   if (state.classes.length === 0) {
     list.innerHTML = '';
     empty.classList.remove('hidden');
     return;
   }
-  
+
   empty.classList.add('hidden');
   list.innerHTML = state.classes.map(cls => `
     <div class="flex items-center gap-3 p-3 rounded-xl border border-slate-200 hover:shadow-sm transition">
@@ -604,7 +657,7 @@ function openClassModal(classId = null) {
   const modal = document.getElementById('classModal');
   const title = document.getElementById('classModalTitle');
   const input = document.getElementById('classNameInput');
-  
+
   if (classId) {
     const cls = state.classes.find(c => c.id === classId);
     title.textContent = 'Editar Turma';
@@ -615,7 +668,7 @@ function openClassModal(classId = null) {
     input.value = '';
     selectedColor = COLORS[state.classes.length % COLORS.length];
   }
-  
+
   renderColorPicker();
   modal.classList.remove('hidden');
   setTimeout(() => input.focus(), 100);
@@ -644,7 +697,7 @@ function saveClass() {
     document.getElementById('classNameInput').focus();
     return;
   }
-  
+
   if (editingClassId) {
     const cls = state.classes.find(c => c.id === editingClassId);
     cls.name = name;
@@ -656,7 +709,7 @@ function saveClass() {
       color: selectedColor
     });
   }
-  
+
   saveState();
   closeClassModal();
   renderAll();
@@ -669,12 +722,13 @@ function editClass(id) {
 function deleteClass(id) {
   const cls = state.classes.find(c => c.id === id);
   if (!confirm(`Excluir a turma "${cls.name}"? Ela será removida de todos os horários.`)) return;
-  
+
   state.classes = state.classes.filter(c => c.id !== id);
+  // Remove from schedule
   Object.keys(state.schedule).forEach(key => {
     if (state.schedule[key] === id) delete state.schedule[key];
   });
-  
+
   saveState();
   renderAll();
 }
@@ -687,20 +741,21 @@ function openSchedulePicker(key) {
     }
     return;
   }
-  
+
+  // Simple prompt-based picker using a custom modal
   showSchedulePickerModal(key);
 }
 
 function showSchedulePickerModal(key) {
   const existing = document.getElementById('pickerModal');
   if (existing) existing.remove();
-  
+
   const currentClassId = state.schedule[key] || null;
-  
+
   const modal = document.createElement('div');
   modal.id = 'pickerModal';
   modal.className = 'fixed inset-0 z-50 flex items-center justify-center p-4 modal-backdrop bg-black/40';
-  
+
   modal.innerHTML = `
     <div class="bg-white rounded-2xl shadow-xl max-w-md w-full p-6 fade-in max-h-[80vh] overflow-y-auto">
       <h3 class="text-xl font-bold text-slate-800 mb-1">Escolher Turma</h3>
@@ -722,7 +777,7 @@ function showSchedulePickerModal(key) {
       <button onclick="closePickerModal()" class="w-full mt-4 px-4 py-2 border border-slate-300 rounded-lg font-medium text-slate-700 hover:bg-slate-50">Cancelar</button>
     </div>
   `;
-  
+
   document.body.appendChild(modal);
   modal.addEventListener('click', (e) => {
     if (e.target === modal) closePickerModal();
@@ -773,18 +828,18 @@ function renderAll() {
   renderNextClass();
 }
 
-loadState();
-renderAll();
-renderPontoButton();
-updateClock();
-
-setInterval(() => {
+(async function init() {
+  await loadState();
+  renderAll();
   updateClock();
-  renderCurrentClass();
-  renderNextClass();
-  renderPontoButton();
-}, 1000);
+  setInterval(() => {
+    updateClock();
+    renderCurrentClass();
+    renderNextClass();
+  }, 1000);
+})();
 
+// Close modals with Escape
 document.addEventListener('keydown', (e) => {
   if (e.key === 'Escape') {
     closeClassModal();
@@ -792,6 +847,7 @@ document.addEventListener('keydown', (e) => {
   }
 });
 
+// Close picker modal on backdrop click
 document.getElementById('classModal').addEventListener('click', (e) => {
   if (e.target.id === 'classModal') closeClassModal();
 });
