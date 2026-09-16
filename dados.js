@@ -1,12 +1,12 @@
 /* ============================================================
    DADOS DO APP — Meus Horários
-   Gerado em 15/09/2026, 23:07:34
+   Gerado em 16/09/2026, 10:07:54
    Substitua o dados.js do GitHub por este arquivo.
    ============================================================ */
 
 const DADOS = {
 
-  versao: 4,
+  versao: 5,
 
   periods: [
     { start: '07:00', end: '07:50' },
@@ -29,7 +29,7 @@ const DADOS = {
     { id: 'c_1789523822536_uqe49', name: '9º02', color: '#6366f1' },
     { id: 'c_1789523827910_1jkrm', name: '9º03', color: '#14b8a6' },
     { id: 'c_1789523847174_0rfz1', name: 'PL', color: '#06b6d4' },
-    { id: 'c_1789523910823_yykka', name: 'ELETIVA', color: '#3b82f6' }
+    { id: 'c_1789523910823_yykka', name: 'ELETIVA', color: '#10b981' }
   ],
 
   schedule: {
