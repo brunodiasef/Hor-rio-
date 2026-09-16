@@ -1,12 +1,12 @@
 /* ============================================================
    DADOS DO APP — Meus Horários
-   Gerado em 15/09/2026, 23:04:04
+   Gerado em 15/09/2026, 23:07:34
    Substitua o dados.js do GitHub por este arquivo.
    ============================================================ */
 
 const DADOS = {
 
-  versao: 2,
+  versao: 4,
 
   periods: [
     { start: '07:00', end: '07:50' },
@@ -14,8 +14,8 @@ const DADOS = {
     { start: '08:40', end: '09:30' },
     { start: '09:50', end: '10:40' },
     { start: '10:40', end: '11:30' },
-    { start: '11:30', end: '12:20' },
-    { start: '13:30', end: '14:20' }
+    { start: '12:20', end: '13:10' },
+    { start: '13:10', end: '14:00' }
   ],
 
   classes: [
