@@ -8,6 +8,10 @@
 <meta name="apple-mobile-web-app-title" content="Meus Horários">
 <meta name="theme-color" content="#0D6A54">
 <title>Meus Horários</title>
+<link rel="icon" type="image/svg+xml" href="icones/favicon.svg">
+<link rel="icon" type="image/png" sizes="32x32" href="icones/favicon-32.png">
+<link rel="apple-touch-icon" sizes="180x180" href="icones/icone-180.png">
+<link rel="manifest" href="manifest.webmanifest">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=Figtree:wght@400;500;600&display=swap">
 <style>
 /* Layout: coluna única de celular (máx. 640px) com abas fixas embaixo; a tela "Agora" funciona como o placar da quadra. */
@@ -36,8 +40,9 @@ button:disabled{opacity:.5;cursor:default}
 :focus-visible{outline:2px solid var(--ink);outline-offset:2px}
 .sr{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%)}
 .app{max-width:640px;margin-inline:auto;padding-inline:16px;padding-block:14px 96px;display:flex;flex-direction:column;gap:18px}
-.top{display:flex;align-items:baseline;justify-content:space-between;gap:12px;flex-wrap:wrap}
-h1{font-family:var(--f-display);font-weight:700;font-size:24px;letter-spacing:.01em;margin:0;text-transform:uppercase}
+.top{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
+h1{font-family:var(--f-display);font-weight:700;font-size:24px;letter-spacing:.01em;margin:0;text-transform:uppercase;display:flex;align-items:center;gap:10px}
+h1 img{width:32px;height:32px;display:block;flex:none}
 .sync{font-size:13px;color:var(--muted);display:inline-flex;align-items:center;gap:6px}
 .sync i{width:8px;height:8px;border-radius:50%;background:var(--muted)}
 .sync[data-s="ok"] i{background:var(--court)}
@@ -140,7 +145,7 @@ code{background:color-mix(in srgb,var(--ink) 8%,transparent);border-radius:4px;p
 
 <div class="app">
   <header class="top">
-    <h1>Meus Horários</h1>
+    <h1><img src="icones/favicon.svg" alt="" width="32" height="32">Meus Horários</h1>
     <span class="sync" id="sync" data-s="ok" role="status"><i></i><span id="sync-txt"></span></span>
   </header>
   <main>
