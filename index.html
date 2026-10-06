@@ -1,0 +1,505 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Meus Horários">
+<meta name="theme-color" content="#0D6A54">
+<title>Meus Horários</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=Figtree:wght@400;500;600&display=swap">
+<style>
+/* Layout: coluna única de celular (máx. 640px) com abas fixas embaixo; a tela "Agora" funciona como o placar da quadra. */
+:root{
+  --bg:#EDF2EF; --surface:#FFFFFF; --ink:#11231D; --muted:#586B63; --line:#D2DDD7;
+  --court:#0D6A54; --court-ink:#F2FBF7; --mark:#F4BE1B; --mark-ink:#2B2100;
+  --danger:#B3261E; --scrim:rgba(8,18,14,.55);
+  --f-display:"Barlow Condensed","Arial Narrow",system-ui,sans-serif;
+  --f-body:"Figtree",system-ui,-apple-system,"Segoe UI",sans-serif;
+  color-scheme:light;
+  padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px);
+}
+@media (prefers-color-scheme: dark){
+  :root{
+    --bg:#0C1512; --surface:#14211C; --ink:#E4EFEA; --muted:#8CA197; --line:#263931;
+    --court:#0F7A61; --court-ink:#F2FBF7; --mark:#F6C83A; --mark-ink:#2B2100;
+    --danger:#F2867E; --scrim:rgba(0,0,0,.65); color-scheme:dark;
+  }
+}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--f-body);font-size:16px;line-height:1.45}
+button,input{font:inherit;color:inherit}
+button{cursor:pointer}
+button:disabled{opacity:.5;cursor:default}
+:focus-visible{outline:2px solid var(--ink);outline-offset:2px}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%)}
+.app{max-width:640px;margin-inline:auto;padding-inline:16px;padding-block:14px 96px;display:flex;flex-direction:column;gap:18px}
+.top{display:flex;align-items:baseline;justify-content:space-between;gap:12px;flex-wrap:wrap}
+h1{font-family:var(--f-display);font-weight:700;font-size:24px;letter-spacing:.01em;margin:0;text-transform:uppercase}
+.sync{font-size:13px;color:var(--muted);display:inline-flex;align-items:center;gap:6px}
+.sync i{width:8px;height:8px;border-radius:50%;background:var(--muted)}
+.sync[data-s="ok"] i{background:var(--court)}
+.sync[data-s="pend"] i{background:var(--mark)}
+section,.bloco{display:flex;flex-direction:column;gap:16px}
+h2{font-family:var(--f-display);font-weight:600;font-size:20px;text-transform:uppercase;letter-spacing:.04em;margin:0}
+.lead{margin:0;color:var(--muted);font-size:15px;max-width:60ch}
+
+/* Agora */
+.relogio{display:flex;align-items:baseline;justify-content:space-between;gap:12px;flex-wrap:wrap}
+.relogio b{font-family:var(--f-display);font-weight:700;font-size:56px;line-height:1;font-variant-numeric:tabular-nums}
+.relogio span{color:var(--muted);font-size:15px}
+.eyebrow{margin:0;font-family:var(--f-display);font-weight:600;font-size:15px;letter-spacing:.1em;text-transform:uppercase}
+.hero{position:relative;overflow:hidden;background:var(--court);color:var(--court-ink);border-radius:18px;padding:20px;display:flex;flex-direction:column;gap:8px}
+.hero::before,.hero::after{content:"";position:absolute;pointer-events:none;border:2px solid color-mix(in srgb,var(--court-ink) 16%,transparent)}
+.hero::before{right:-70px;top:50%;width:200px;height:200px;border-radius:50%;transform:translateY(-50%)}
+.hero::after{right:30px;top:-10px;bottom:-10px;width:0;border-width:0 0 0 2px}
+.hero>*{position:relative;z-index:1}
+.hero-title{margin:0;font-family:var(--f-display);font-weight:700;font-size:clamp(48px,15vw,76px);line-height:.95;overflow-wrap:anywhere}
+.hero-sub{margin:0;font-size:18px;font-weight:500;font-variant-numeric:tabular-nums}
+.bar{height:10px;border-radius:5px;background:color-mix(in srgb,var(--court-ink) 22%,transparent);overflow:hidden;margin-top:6px}
+.bar span{display:block;height:100%;background:var(--mark);border-radius:5px}
+.hero-foot{margin:0;font-size:15px;font-weight:500}
+.hero.off{background:var(--surface);color:var(--ink);border:1px solid var(--line)}
+.hero.off::before,.hero.off::after{border-color:color-mix(in srgb,var(--ink) 8%,transparent)}
+.hero.off .hero-title{font-size:clamp(36px,11vw,52px)}
+.hero.off .bar{background:var(--line)}
+.prox{background:var(--surface);border:1px solid var(--line);border-radius:18px;padding:16px 20px;display:flex;flex-direction:column;gap:4px}
+.prox .eyebrow{color:var(--muted)}
+.prox-linha{display:flex;align-items:baseline;gap:12px;flex-wrap:wrap}
+.prox-t{font-family:var(--f-display);font-weight:700;font-size:38px;line-height:1;overflow-wrap:anywhere}
+.prox-q{font-size:15px;color:var(--muted);font-variant-numeric:tabular-nums}
+.prox-em{margin:0;font-size:15px;font-weight:500}
+.dot{display:inline-block;width:12px;height:12px;border-radius:50%;background:var(--c,var(--muted));flex:none}
+.ponto{background:var(--surface);border:1px solid var(--line);border-radius:18px;padding:14px 20px;display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
+.ponto .eyebrow{color:var(--muted)}
+.ponto p{margin:0}
+.ponto .st{display:flex;align-items:center;gap:8px;font-weight:600}
+.ponto.ok .dot{background:var(--court)}
+.aviso{margin:0;border:1px dashed var(--muted);border-radius:12px;padding:12px 14px;font-size:15px}
+.acoes{display:flex;gap:8px;flex-wrap:wrap}
+.btn{border:1px solid var(--line);background:var(--surface);border-radius:10px;padding:10px 14px;font-weight:600;font-size:15px;min-height:44px}
+.btn.pri{background:var(--court);border-color:var(--court);color:var(--court-ink)}
+.btn.perigo{color:var(--danger);border-color:var(--danger)}
+.btn.txt{border-color:transparent;background:transparent;color:var(--muted)}
+.hoje{list-style:none;margin:0;padding:0;border-top:1px solid var(--line)}
+.hoje li{display:grid;grid-template-columns:30px 104px minmax(0,1fr) auto;align-items:center;gap:8px;padding:10px 0;border-bottom:1px solid var(--line)}
+.hoje .n{font-family:var(--f-display);font-weight:600;font-size:18px;color:var(--muted)}
+.hoje .h{font-size:14px;color:var(--muted);font-variant-numeric:tabular-nums}
+.hoje .t{display:flex;align-items:center;gap:8px;font-family:var(--f-display);font-weight:600;font-size:22px;min-width:0;overflow-wrap:anywhere}
+.hoje .vago{font-family:var(--f-body);font-weight:400;font-size:15px;color:var(--muted)}
+.hoje li.pass{opacity:.5}
+.pill{background:var(--mark);color:var(--mark-ink);font-size:12px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;border-radius:999px;padding:3px 9px}
+
+/* Semana */
+.tbl-wrap{overflow-x:auto}
+table.grade{width:100%;border-collapse:separate;border-spacing:4px;table-layout:fixed}
+.grade th{font-family:var(--f-display);font-weight:600;font-size:16px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);padding:4px 0}
+.grade thead th:first-child,.grade tbody th{width:48px}
+.grade thead th.hoje-col{color:var(--ink);box-shadow:inset 0 -3px 0 var(--mark)}
+.grade tbody th{text-align:left;line-height:1.1}
+.grade tbody th b{display:block;font-size:18px;color:var(--ink)}
+.grade tbody th small{font-family:var(--f-body);font-weight:400;font-size:11px;letter-spacing:0;font-variant-numeric:tabular-nums}
+.grade td{padding:0}
+.cel{width:100%;min-height:52px;border-radius:8px;border:1px solid transparent;background:color-mix(in srgb,var(--c) 24%,var(--surface));font-family:var(--f-display);font-weight:600;font-size:17px;line-height:1.05;padding:4px 2px;overflow-wrap:anywhere}
+.cel.vazia{background:transparent;border:1px dashed var(--line);color:var(--muted);font-weight:500}
+.cel.now{border:2px solid var(--ink)}
+
+/* Turmas e Horários */
+.lista{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:8px}
+.lista li{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:10px 12px;display:flex;flex-direction:column;gap:10px}
+.linha{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.sw{width:36px;height:36px;border-radius:50%;border:2px solid var(--surface);box-shadow:0 0 0 1px var(--line);background:var(--c);flex:none;padding:0}
+.sw.sel{box-shadow:0 0 0 2px var(--ink)}
+.linha .btn.txt{padding-inline:6px}
+.campo{flex:1 1 84px;min-width:0;border:1px solid var(--line);background:var(--bg);border-radius:8px;padding:9px 10px;min-height:44px}
+.meta{font-size:13px;color:var(--muted);white-space:nowrap}
+.paleta{display:flex;gap:8px;flex-wrap:wrap}
+.nova{display:flex;gap:8px;flex-wrap:wrap}
+.per{display:grid;grid-template-columns:72px minmax(0,1fr) auto minmax(0,1fr);align-items:center;gap:8px}
+.per b{font-family:var(--f-display);font-weight:600;font-size:20px}
+.per input{width:100%;min-width:0;border:1px solid var(--line);background:var(--bg);border-radius:8px;padding:9px 8px;min-height:44px;font-variant-numeric:tabular-nums}
+.erro{margin:0;color:var(--danger);font-size:14px;font-weight:500}
+code{background:color-mix(in srgb,var(--ink) 8%,transparent);border-radius:4px;padding:1px 5px;font-size:.92em}
+
+/* Abas e seletor */
+.tabs{position:fixed;left:0;right:0;bottom:0;background:var(--surface);border-top:1px solid var(--line);padding-bottom:env(safe-area-inset-bottom,0px);z-index:5}
+.tabs div{max-width:640px;margin-inline:auto;display:grid;grid-template-columns:repeat(4,1fr)}
+.tabs button{border:0;background:transparent;padding:14px 4px 12px;font-family:var(--f-display);font-weight:600;font-size:17px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);box-shadow:inset 0 3px 0 transparent}
+.tabs button[aria-current="page"]{color:var(--ink);box-shadow:inset 0 3px 0 var(--court)}
+.sheet{position:fixed;inset:0;background:var(--scrim);z-index:10;display:flex;align-items:flex-end;justify-content:center}
+.painel{width:100%;max-width:640px;max-height:76%;overflow:auto;background:var(--surface);border-radius:18px 18px 0 0;padding:18px 16px calc(18px + env(safe-area-inset-bottom,0px));display:flex;flex-direction:column;gap:14px}
+.opcoes{display:grid;grid-template-columns:repeat(auto-fill,minmax(104px,1fr));gap:8px}
+.op{min-height:52px;border-radius:10px;border:1px solid transparent;background:color-mix(in srgb,var(--c) 24%,var(--surface));font-family:var(--f-display);font-weight:600;font-size:20px;padding:6px;overflow-wrap:anywhere}
+.op.sel{border:2px solid var(--ink)}
+@media (prefers-reduced-motion:no-preference){.bar span{transition:width .6s ease}}
+</style>
+</head>
+<body>
+
+<div class="app">
+  <header class="top">
+    <h1>Meus Horários</h1>
+    <span class="sync" id="sync" data-s="ok" role="status"><i></i><span id="sync-txt"></span></span>
+  </header>
+  <main>
+    <section id="v-agora" aria-label="Agora"></section>
+    <section id="v-semana" aria-label="Semana" hidden></section>
+    <section id="v-turmas" aria-label="Turmas" hidden></section>
+    <section id="v-horarios" aria-label="Horários" hidden>
+      <div class="bloco" id="hor-lista"></div>
+      <div class="bloco" id="dados-box"></div>
+    </section>
+  </main>
+</div>
+<nav class="tabs" aria-label="Seções"><div>
+  <button type="button" data-act="tab" data-tab="agora" id="tab-agora">Agora</button>
+  <button type="button" data-act="tab" data-tab="semana" id="tab-semana">Semana</button>
+  <button type="button" data-act="tab" data-tab="turmas" id="tab-turmas">Turmas</button>
+  <button type="button" data-act="tab" data-tab="horarios" id="tab-horarios">Horários</button>
+</div></nav>
+<div class="sheet" id="sheet" hidden><div class="painel" id="painel" role="dialog" aria-modal="true" aria-labelledby="sheet-tit"></div></div>
+
+<!-- Arquivo com SEUS dados (turmas, grade e horários) -->
+<script src="dados.js"></script>
+
+<script>
+/*PURE-START*/
+const DIAS=['seg','ter','qua','qui','sex'];
+const DIA_NOME={seg:'Segunda-feira',ter:'Terça-feira',qua:'Quarta-feira',qui:'Quinta-feira',sex:'Sexta-feira'};
+const DIA_CURTO={seg:'Seg',ter:'Ter',qua:'Qua',qui:'Qui',sex:'Sex'};
+const PALETA=['#2F7FD1','#1AA6A6','#3F9B4B','#E0A100','#E0702B','#D6455B','#C24FA6','#7B61D9','#5C7A8A','#8C6B3F'];
+const PADRAO=[['07:00','07:50'],['07:50','08:40'],['08:40','09:30'],['09:50','10:40'],['10:40','11:30'],['12:20','13:10'],['13:10','14:00']];
+const RE_HORA=/^([01]\d|2[0-3]):[0-5]\d$/, RE_COR=/^#[0-9a-fA-F]{6}$/;
+function hm(s){return parseInt(s.slice(0,2),10)*60+parseInt(s.slice(3),10)}
+function fmt(m){m=Math.round(m);return String(Math.floor(m/60)).padStart(2,'0')+':'+String(m%60).padStart(2,'0')}
+function dur(m){m=Math.max(1,Math.ceil(m));if(m<60)return m+' min';const h=Math.floor(m/60),r=m%60;return h+' h'+(r?' '+r+' min':'')}
+function norm(d){
+  d=d&&typeof d==='object'?d:{};
+  const turmas=(Array.isArray(d.turmas)?d.turmas:[]).filter(t=>t&&t.id).map(t=>({id:String(t.id),nome:String(t.nome||'').slice(0,40),cor:RE_COR.test(t.cor)?t.cor:PALETA[0]}));
+  const ids=new Set(turmas.map(t=>t.id));
+  const periodos=PADRAO.map((p,i)=>{const q=Array.isArray(d.periodos)?d.periodos[i]:null;return{ini:q&&RE_HORA.test(q.ini)?q.ini:p[0],fim:q&&RE_HORA.test(q.fim)?q.fim:p[1]}});
+  const grade={};
+  DIAS.forEach(dia=>{const a=d.grade&&Array.isArray(d.grade[dia])?d.grade[dia]:[];grade[dia]=PADRAO.map((_,i)=>ids.has(a[i])?a[i]:'')});
+  return{turmas,periodos,grade};
+}
+/* Formato do dados.js: { versao, periods:[{start,end}], classes:[{id,name,color}], schedule:{'seg-0':id} } */
+function deExterno(d){
+  d=d&&typeof d==='object'?d:{};
+  const sch=d.schedule&&typeof d.schedule==='object'?d.schedule:{};
+  const grade={};DIAS.forEach(dia=>grade[dia]=PADRAO.map((_,i)=>sch[dia+'-'+i]||''));
+  return norm({
+    turmas:(Array.isArray(d.classes)?d.classes:[]).filter(Boolean).map(c=>({id:c.id,nome:c.name,cor:c.color})),
+    periodos:(Array.isArray(d.periods)?d.periods:[]).map(p=>p?{ini:p.start,fim:p.end}:null),
+    grade
+  });
+}
+function paraExterno(st,versao){
+  const schedule={};DIAS.forEach(dia=>st.grade[dia].forEach((id,i)=>{if(id)schedule[dia+'-'+i]=id}));
+  return{versao,periods:st.periodos.map(p=>({start:p.ini,end:p.fim})),classes:st.turmas.map(t=>({id:t.id,name:t.nome,color:t.cor})),schedule};
+}
+function aspas(s){return"'"+String(s).replace(/\\/g,'\\\\').replace(/'/g,"\\'").replace(/[\r\n]+/g,' ')+"'"}
+function gerarArquivo(st,versao,quando){
+  const e=paraExterno(st,versao);
+  const periods=e.periods.map(p=>`    { start: ${aspas(p.start)}, end: ${aspas(p.end)} }`).join(',\n');
+  const classes=e.classes.map(c=>`    { id: ${aspas(c.id)}, name: ${aspas(c.name)}, color: ${aspas(c.color)} }`).join(',\n');
+  const schedule=Object.keys(e.schedule).sort().map(k=>`    '${k}': ${aspas(e.schedule[k])}`).join(',\n');
+  return`/* ============================================================
+   DADOS DO APP — Meus Horários
+   Gerado em ${quando}
+   Substitua o dados.js do GitHub por este arquivo.
+   ============================================================ */
+
+const DADOS = {
+
+  versao: ${versao},
+
+  periods: [
+${periods}
+  ],
+
+  classes: [
+${classes}
+  ],
+
+  schedule: {
+${schedule}
+  }
+
+};
+`;
+}
+function situacao(st,dow,min){
+  const dia=dow>=1&&dow<=5?DIAS[dow-1]:null;
+  const P=st.periodos.map((p,i)=>({i,ini:hm(p.ini),fim:hm(p.fim)}));
+  const porIni=P.slice().sort((a,b)=>a.ini-b.ini);
+  let atual={tipo:'fds'};
+  if(dia){
+    const g=st.grade[dia], em=P.find(p=>min>=p.ini&&min<p.fim);
+    const primeira=porIni[0].ini, ultima=Math.max(...P.map(p=>p.fim));
+    if(em)atual={tipo:g[em.i]?'aula':'vago',i:em.i,turma:g[em.i],ini:em.ini,fim:em.fim};
+    else if(min<primeira)atual={tipo:'antes',fim:primeira};
+    else if(min>=ultima)atual={tipo:'depois'};
+    else{const px=porIni.find(p=>p.ini>min);const ant=Math.max(...P.filter(p=>p.fim<=min).map(p=>p.fim));atual={tipo:'intervalo',ini:ant,fim:px.ini,i:px.i}}
+  }
+  let proxima=null;
+  if(dia){const g=st.grade[dia],c=porIni.find(p=>p.ini>min&&g[p.i]);if(c)proxima={dia,hoje:true,dias:0,i:c.i,turma:g[c.i],ini:c.ini,fim:c.fim,em:c.ini-min}}
+  if(!proxima)for(let k=1;k<=7;k++){const w=(dow+k)%7;if(w<1||w>5)continue;const d2=DIAS[w-1],g=st.grade[d2],c=porIni.find(p=>g[p.i]);if(c){proxima={dia:d2,hoje:false,dias:k,i:c.i,turma:g[c.i],ini:c.ini,fim:c.fim};break}}
+  return{dia,atual,proxima};
+}
+/*PURE-END*/
+
+const $=id=>document.getElementById(id);
+const esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+/* Os dados "oficiais" ficam em dados.js. O navegador guarda apenas as edições
+   feitas neste aparelho, até você baixar um dados.js novo e enviar ao GitHub. */
+const CHAVE='schoolScheduleApp', CHAVE_PEND='meusHorariosPendente', CHAVE_PONTO='pontoState';
+const ARQ=(typeof DADOS!=='undefined'&&DADOS&&typeof DADOS==='object')?DADOS:null;
+let state=norm({}), versao=1, pendente=false;
+let aba='agora', sel=null, corAberta=null, delPend=null, restPend=false, baixou=false, chaveAgora='';
+
+function arqTemDados(){return!!(ARQ&&Array.isArray(ARQ.classes)&&ARQ.classes.length)}
+function guardar(){try{localStorage.setItem(CHAVE,JSON.stringify(paraExterno(state,versao)));localStorage.setItem(CHAVE_PEND,pendente?'1':'0')}catch(e){}}
+function aplicarArquivo(){state=deExterno(ARQ||{});versao=(ARQ&&ARQ.versao)||1;pendente=false;guardar()}
+(function carregar(){
+  let salvo=null;
+  try{const r=localStorage.getItem(CHAVE);if(r)salvo=JSON.parse(r)}catch(e){}
+  try{pendente=localStorage.getItem(CHAVE_PEND)==='1'}catch(e){}
+  /* Sem nada neste aparelho, ou arquivo mais novo: vale o dados.js. */
+  if(!salvo||typeof salvo!=='object'||(arqTemDados()&&(ARQ.versao||0)>(salvo.versao||0))){aplicarArquivo();return}
+  state=deExterno(salvo);versao=salvo.versao||(ARQ&&ARQ.versao)||1;
+})();
+function statusArq(){
+  const el=$('sync');
+  if(pendente){el.dataset.s='pend';$('sync-txt').textContent='Alterações só neste aparelho'}
+  else if(arqTemDados()){el.dataset.s='ok';$('sync-txt').textContent='dados.js versão '+versao}
+  else{el.dataset.s='load';$('sync-txt').textContent='Salvo neste aparelho'}
+}
+function mapa(){return new Map(state.turmas.map(t=>[t.id,t]))}
+function agoraInfo(){const d=new Date();return{d,dow:d.getDay(),min:d.getHours()*60+d.getMinutes()+d.getSeconds()/60}}
+function temAula(){return DIAS.some(d=>state.grade[d].some(Boolean))}
+function mudou(pular){pendente=true;baixou=false;guardar();statusArq();render(pular)}
+
+/* ---------- ponto ---------- */
+function hojeChave(){const n=new Date();return n.getFullYear()+'-'+String(n.getMonth()+1).padStart(2,'0')+'-'+String(n.getDate()).padStart(2,'0')}
+function pontoHoje(){try{const r=localStorage.getItem(CHAVE_PONTO);if(r){const p=JSON.parse(r);if(p&&p.signedDate===hojeChave())return p}}catch(e){}return null}
+function pontoHtml(){
+  const p=pontoHoje();
+  return p
+    ?`<div class="ponto ok"><div><p class="eyebrow">Ponto</p><p class="st"><span class="dot"></span>Assinado hoje às ${esc(p.signedTime||'')}</p></div></div>`
+    :`<div class="ponto"><div><p class="eyebrow">Ponto</p><p class="st">Ainda não assinado hoje</p></div><button type="button" class="btn pri" data-act="ponto">Assinar o ponto</button></div>`;
+}
+
+/* ---------- telas ---------- */
+function rAgora(){
+  const{d,dow,min}=agoraInfo(), s=situacao(state,dow,min), tm=mapa(), a=s.atual;
+  chaveAgora=Math.floor(min)+'|'+dow+'|'+hojeChave();
+  let h=`<div class="relogio"><b>${fmt(Math.floor(min))}</b><span>${esc(d.toLocaleDateString('pt-BR',{weekday:'long',day:'numeric',month:'long'}))}</span></div>`;
+  if(!temAula()){
+    h+=`<div class="hero off"><p class="eyebrow">Agora</p><p class="hero-title">Nenhuma aula cadastrada</p><p class="hero-sub">Cadastre suas turmas e depois monte a semana.</p><div class="acoes"><button type="button" class="btn pri" data-act="tab" data-tab="turmas">Cadastrar turmas</button></div></div>`+pontoHtml();
+    $('v-agora').innerHTML=h;return;
+  }
+  const barra=(ini,fim)=>{const p=Math.min(100,Math.max(0,(min-ini)/(fim-ini)*100));return`<div class="bar" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${Math.round(p)}"><span style="width:${p.toFixed(1)}%"></span></div>`};
+  if(a.tipo==='aula'){
+    const t=tm.get(a.turma);
+    h+=`<div class="hero"><p class="eyebrow">Agora · ${a.i+1}ª aula</p><p class="hero-title">${esc(t?t.nome:'—')}</p><p class="hero-sub">${fmt(a.ini)} – ${fmt(a.fim)}</p>${barra(a.ini,a.fim)}<p class="hero-foot">Faltam ${dur(a.fim-min)} para acabar</p></div>`;
+  }else if(a.tipo==='vago'){
+    h+=`<div class="hero off"><p class="eyebrow">Agora · ${a.i+1}ª aula</p><p class="hero-title">Horário vago</p><p class="hero-sub">${fmt(a.ini)} – ${fmt(a.fim)}</p>${barra(a.ini,a.fim)}<p class="hero-foot">Faltam ${dur(a.fim-min)} para acabar</p></div>`;
+  }else if(a.tipo==='intervalo'){
+    h+=`<div class="hero off"><p class="eyebrow">Agora</p><p class="hero-title">Intervalo</p><p class="hero-sub">${fmt(a.ini)} – ${fmt(a.fim)}</p>${barra(a.ini,a.fim)}<p class="hero-foot">A ${a.i+1}ª aula começa em ${dur(a.fim-min)}</p></div>`;
+  }else if(a.tipo==='antes'){
+    h+=`<div class="hero off"><p class="eyebrow">Agora</p><p class="hero-title">Antes da 1ª aula</p><p class="hero-sub">As aulas começam às ${fmt(a.fim)}, em ${dur(a.fim-min)}.</p></div>`;
+  }else if(a.tipo==='depois'){
+    h+=`<div class="hero off"><p class="eyebrow">Agora</p><p class="hero-title">Aulas encerradas</p><p class="hero-sub">Por hoje não há mais aulas.</p></div>`;
+  }else{
+    h+=`<div class="hero off"><p class="eyebrow">Agora</p><p class="hero-title">Fim de semana</p><p class="hero-sub">Sem aulas hoje.</p></div>`;
+  }
+  const p=s.proxima;
+  if(p){
+    const t=tm.get(p.turma);
+    const quando=p.hoje?`Começa em ${dur(p.em)}`:(p.dias===1?'Amanhã, '+DIA_NOME[p.dia].toLowerCase():DIA_NOME[p.dia]);
+    h+=`<div class="prox"><p class="eyebrow">Próxima aula</p><div class="prox-linha"><span class="dot" style="--c:${t?t.cor:'transparent'}"></span><span class="prox-t">${esc(t?t.nome:'—')}</span><span class="prox-q">${p.i+1}ª aula · ${fmt(p.ini)} – ${fmt(p.fim)}</span></div><p class="prox-em">${quando}</p></div>`;
+  }
+  h+=pontoHtml();
+  const dl=s.dia||(p?p.dia:'seg'), g=state.grade[dl];
+  h+=`<h2>${s.dia?'Hoje':DIA_NOME[dl]}</h2><ol class="hoje">`;
+  state.periodos.forEach((q,i)=>{
+    const t=tm.get(g[i]);
+    const atualAqui=s.dia&&(a.tipo==='aula'||a.tipo==='vago')&&a.i===i;
+    const passou=s.dia&&hm(q.fim)<=min;
+    h+=`<li class="${passou?'pass':''}"><span class="n">${i+1}ª</span><span class="h">${q.ini} – ${q.fim}</span>`+
+       (t?`<span class="t"><span class="dot" style="--c:${t.cor}"></span>${esc(t.nome)}</span>`:`<span class="t vago">vago</span>`)+
+       (atualAqui?`<span class="pill">agora</span>`:'<span></span>')+`</li>`;
+  });
+  h+='</ol>';
+  $('v-agora').innerHTML=h;
+}
+function rSemana(){
+  const{dow,min}=agoraInfo(), s=situacao(state,dow,min), tm=mapa(), a=s.atual;
+  let h=`<h2>Semana</h2><p class="lead">Toque em um horário para escolher a turma.</p><div class="tbl-wrap"><table class="grade"><thead><tr><th scope="col"><span class="sr">Aula</span></th>`;
+  DIAS.forEach(d=>h+=`<th scope="col" class="${d===s.dia?'hoje-col':''}">${DIA_CURTO[d]}</th>`);
+  h+='</tr></thead><tbody>';
+  state.periodos.forEach((p,i)=>{
+    h+=`<tr><th scope="row"><b>${i+1}ª</b><small>${p.ini}<br>${p.fim}</small></th>`;
+    DIAS.forEach(d=>{
+      const t=tm.get(state.grade[d][i]);
+      const now=d===s.dia&&(a.tipo==='aula'||a.tipo==='vago')&&a.i===i;
+      h+=`<td><button type="button" class="cel${t?'':' vazia'}${now?' now':''}" data-act="cel" data-dia="${d}" data-i="${i}"${t?` style="--c:${t.cor}"`:''} aria-label="${DIA_NOME[d]}, ${i+1}ª aula: ${t?esc(t.nome):'vago'}">${t?esc(t.nome):'+'}</button></td>`;
+    });
+    h+='</tr>';
+  });
+  h+='</tbody></table></div>';
+  $('v-semana').innerHTML=h;
+}
+function rTurmas(){
+  const conta={};DIAS.forEach(d=>state.grade[d].forEach(id=>{if(id)conta[id]=(conta[id]||0)+1}));
+  let h=`<h2>Turmas</h2>`;
+  h+=state.turmas.length?'<ul class="lista">':'<p class="lead">Nenhuma turma cadastrada ainda. Adicione a primeira abaixo.</p>';
+  state.turmas.forEach(t=>{
+    const n=conta[t.id]||0;
+    h+=`<li><div class="linha"><button type="button" class="sw" style="--c:${t.cor}" data-act="cor-abrir" data-id="${esc(t.id)}" aria-label="Trocar a cor de ${esc(t.nome)}"></button>`+
+       `<input class="campo t-nome" id="t-nome-${esc(t.id)}" data-id="${esc(t.id)}" value="${esc(t.nome)}" maxlength="40" aria-label="Nome da turma">`+
+       `<span class="meta">${n} ${n===1?'aula':'aulas'}/sem</span>`+
+       (delPend===t.id?`<button type="button" class="btn perigo" data-act="del-ok" data-id="${esc(t.id)}">Excluir mesmo</button><button type="button" class="btn txt" data-act="del-nao">Cancelar</button>`
+                      :`<button type="button" class="btn txt" data-act="del" data-id="${esc(t.id)}">Excluir</button>`)+`</div>`;
+    if(corAberta===t.id)h+=`<div class="paleta">`+PALETA.map(c=>`<button type="button" class="sw${c===t.cor?' sel':''}" style="--c:${c}" data-act="cor" data-id="${esc(t.id)}" data-cor="${c}" aria-label="Cor ${c}"></button>`).join('')+`</div>`;
+    if(delPend===t.id&&n)h+=`<p class="erro">Esta turma sairá de ${n} ${n===1?'horário':'horários'} da semana.</p>`;
+    h+='</li>';
+  });
+  if(state.turmas.length)h+='</ul>';
+  h+=`<form class="nova" id="f-nova" autocomplete="off"><label class="sr" for="nova-nome">Nome da nova turma</label><input class="campo" id="nova-nome" maxlength="40" placeholder="Nova turma, ex.: 6º01"><button class="btn pri" type="submit">Adicionar</button></form><p class="erro" id="nova-erro" hidden></p>`;
+  $('v-turmas').innerHTML=h;
+}
+function rHorarios(){
+  let h=`<h2>Horários</h2><p class="lead">Início e fim de cada uma das sete aulas. Os intervalos são o tempo que sobra entre uma aula e a seguinte.</p><ul class="lista">`;
+  state.periodos.forEach((p,i)=>{
+    h+=`<li><div class="per"><b>${i+1}ª aula</b><input type="time" class="p-hora" id="p-ini-${i}" data-i="${i}" data-k="ini" value="${p.ini}" aria-label="Início da ${i+1}ª aula"><span class="meta">até</span><input type="time" class="p-hora" id="p-fim-${i}" data-i="${i}" data-k="fim" value="${p.fim}" aria-label="Fim da ${i+1}ª aula"></div></li>`;
+  });
+  h+=`</ul><p class="erro" id="hor-erro" hidden></p>`;
+  $('hor-lista').innerHTML=h;avisoHorarios();
+}
+function rDados(){
+  let h=`<h2>Meus dados</h2><p class="lead">Suas turmas, sua grade e os horários ficam no arquivo <code>dados.js</code>. Depois de alterar algo aqui, baixe o arquivo novo e substitua o do GitHub, para a mudança valer em todos os aparelhos.</p>`;
+  if(pendente)h+=`<p class="aviso">Há alterações que ainda não estão no <code>dados.js</code>. Por enquanto elas valem só neste aparelho.</p>`;
+  if(baixou)h+=`<p class="aviso">Arquivo baixado (versão ${versao}). Envie-o ao GitHub no lugar do <code>dados.js</code> antigo.</p>`;
+  h+=`<div class="acoes"><button type="button" class="btn pri" data-act="baixar">Baixar dados.js</button>`+
+     (restPend?`<button type="button" class="btn perigo" data-act="rest-ok">Descartar alterações</button><button type="button" class="btn txt" data-act="rest-nao">Cancelar</button>`
+              :`<button type="button" class="btn" data-act="rest"${arqTemDados()?'':' disabled'}>Restaurar do arquivo</button>`)+`</div>`;
+  if(restPend)h+=`<p class="erro">Isso descarta o que foi alterado neste aparelho e volta ao que está no dados.js.</p>`;
+  $('dados-box').innerHTML=h;
+}
+function avisoHorarios(){
+  const el=$('hor-erro');if(!el)return;
+  const m=[];
+  state.periodos.forEach((p,i)=>{
+    if(hm(p.fim)<=hm(p.ini))m.push(`A ${i+1}ª aula termina antes de começar.`);
+    if(i&&hm(p.ini)<hm(state.periodos[i-1].fim))m.push(`A ${i+1}ª aula começa antes de a ${i}ª terminar.`);
+  });
+  el.textContent=m.join(' ');el.hidden=!m.length;
+}
+function render(pular){
+  if(pular!=='agora')rAgora();
+  if(pular!=='semana')rSemana();
+  if(pular!=='turmas')rTurmas();
+  if(pular!=='horarios')rHorarios();
+  rDados();
+}
+function irPara(t,foco){
+  if(!['agora','semana','turmas','horarios'].includes(t))t='agora';
+  aba=t;
+  ['agora','semana','turmas','horarios'].forEach(n=>{$('v-'+n).hidden=n!==t;const b=$('tab-'+n);if(n===t)b.setAttribute('aria-current','page');else b.removeAttribute('aria-current')});
+  try{history.replaceState(null,'','#'+t)}catch(e){}
+  if(foco)window.scrollTo(0,0);
+}
+
+/* ---------- seletor de turma ---------- */
+function abrirSheet(dia,i){
+  sel={dia,i};const atual=state.grade[dia][i];
+  let h=`<h2 id="sheet-tit">${DIA_NOME[dia]} · ${i+1}ª aula</h2>`;
+  if(state.turmas.length){
+    h+='<div class="opcoes">'+state.turmas.map(t=>`<button type="button" class="op${t.id===atual?' sel':''}" style="--c:${t.cor}" data-act="pick" data-id="${esc(t.id)}">${esc(t.nome)}</button>`).join('')+'</div>';
+  }else h+='<p class="lead">Cadastre uma turma primeiro, na aba Turmas.</p>';
+  h+=`<div class="acoes">${atual?'<button type="button" class="btn" data-act="pick" data-id="">Deixar vago</button>':''}<button type="button" class="btn txt" data-act="fechar">Fechar</button></div>`;
+  $('painel').innerHTML=h;$('sheet').hidden=false;
+  const b=$('painel').querySelector('button');if(b)b.focus();
+}
+function fecharSheet(){
+  if($('sheet').hidden)return;
+  $('sheet').hidden=true;
+  const s=sel;sel=null;
+  if(s){const b=document.querySelector(`.cel[data-dia="${s.dia}"][data-i="${s.i}"]`);if(b)b.focus()}
+}
+function baixarDados(){
+  const nova=versao+1;
+  const txt=gerarArquivo(state,nova,new Date().toLocaleString('pt-BR'));
+  const url=URL.createObjectURL(new Blob([txt],{type:'text/javascript;charset=utf-8'}));
+  const a=document.createElement('a');a.href=url;a.download='dados.js';
+  document.body.appendChild(a);a.click();a.remove();
+  setTimeout(()=>URL.revokeObjectURL(url),1500);
+  versao=nova;pendente=false;baixou=true;restPend=false;guardar();statusArq();rDados();
+}
+
+/* ---------- eventos ---------- */
+document.addEventListener('click',e=>{
+  if(e.target===$('sheet')){fecharSheet();return}
+  const b=e.target.closest('[data-act]');if(!b)return;
+  const act=b.dataset.act,id=b.dataset.id;
+  if(act==='tab')irPara(b.dataset.tab,true);
+  else if(act==='ponto'){
+    const n=new Date();
+    try{localStorage.setItem(CHAVE_PONTO,JSON.stringify({signedDate:hojeChave(),signedTime:n.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit',second:'2-digit'})}))}catch(err){}
+    rAgora();
+  }
+  else if(act==='cel')abrirSheet(b.dataset.dia,+b.dataset.i);
+  else if(act==='fechar')fecharSheet();
+  else if(act==='pick'){if(sel){state.grade[sel.dia][sel.i]=id||'';mudou();fecharSheet()}}
+  else if(act==='cor-abrir'){corAberta=corAberta===id?null:id;rTurmas()}
+  else if(act==='cor'){const t=state.turmas.find(x=>x.id===id);if(t&&RE_COR.test(b.dataset.cor)){t.cor=b.dataset.cor;corAberta=null;mudou()}}
+  else if(act==='del'){delPend=id;rTurmas()}
+  else if(act==='del-nao'){delPend=null;rTurmas()}
+  else if(act==='del-ok'){
+    state.turmas=state.turmas.filter(x=>x.id!==id);
+    DIAS.forEach(d=>state.grade[d]=state.grade[d].map(x=>x===id?'':x));
+    delPend=null;mudou();
+  }
+  else if(act==='baixar')baixarDados();
+  else if(act==='rest'){restPend=true;rDados()}
+  else if(act==='rest-nao'){restPend=false;rDados()}
+  else if(act==='rest-ok'){restPend=false;baixou=false;aplicarArquivo();statusArq();render()}
+});
+document.addEventListener('keydown',e=>{if(e.key==='Escape')fecharSheet()});
+document.addEventListener('submit',e=>{
+  if(e.target.id!=='f-nova')return;
+  e.preventDefault();
+  const nome=$('nova-nome').value.trim(),err=$('nova-erro');
+  if(!nome){err.textContent='Digite o nome da turma.';err.hidden=false;$('nova-nome').focus();return}
+  if(state.turmas.some(t=>t.nome.toLowerCase()===nome.toLowerCase())){err.textContent='Já existe uma turma com esse nome.';err.hidden=false;$('nova-nome').focus();return}
+  const usadas=new Set(state.turmas.map(t=>t.cor.toUpperCase()));
+  const cor=PALETA.find(c=>!usadas.has(c.toUpperCase()))||PALETA[state.turmas.length%PALETA.length];
+  state.turmas.push({id:'c_'+Date.now()+'_'+Math.random().toString(36).slice(2,7),nome:nome.slice(0,40),cor});
+  mudou();
+  $('nova-nome').focus();
+});
+document.addEventListener('change',e=>{
+  const el=e.target;
+  if(el.classList.contains('t-nome')){
+    const t=state.turmas.find(x=>x.id===el.dataset.id);if(!t)return;
+    const nome=el.value.trim();
+    if(!nome){el.value=t.nome;return}
+    t.nome=nome.slice(0,40);mudou('turmas');
+  }else if(el.classList.contains('p-hora')){
+    const p=state.periodos[+el.dataset.i];
+    if(!p||!RE_HORA.test(el.value)){if(p)el.value=p[el.dataset.k];return}
+    p[el.dataset.k]=el.value;mudou('horarios');avisoHorarios();
+  }
+});
+setInterval(()=>{const{dow,min}=agoraInfo();if(Math.floor(min)+'|'+dow+'|'+hojeChave()!==chaveAgora){rAgora();rSemana()}},5000);
+document.addEventListener('visibilitychange',()=>{if(!document.hidden){rAgora();rSemana()}});
+
+statusArq();
+render();
+irPara((location.hash||'').slice(1)||'agora');
+</script>
+</body>
+</html>
