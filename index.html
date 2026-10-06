@@ -139,9 +139,57 @@ code{background:color-mix(in srgb,var(--ink) 8%,transparent);border-radius:4px;p
 .op{min-height:52px;border-radius:10px;border:1px solid transparent;background:color-mix(in srgb,var(--c) 24%,var(--surface));font-family:var(--f-display);font-weight:600;font-size:20px;padding:6px;overflow-wrap:anywhere}
 .op.sel{border:2px solid var(--ink)}
 @media (prefers-reduced-motion:no-preference){.bar span{transition:width .6s ease}}
+
+/* Abertura (4 s, só na primeira vez do dia): a logo é desenhada no centro e pousa no cabeçalho */
+#abertura{position:fixed;inset:0;z-index:50;cursor:pointer}
+#abertura .ab-veu{position:absolute;inset:0;background:var(--bg)}
+#abertura svg{position:absolute;left:50%;top:50%;width:132px;height:132px;margin:-66px 0 0 -66px;opacity:0}
+#abertura .ab-m,#abertura .ab-r,#abertura .ab-h,#abertura .ab-d{transform-origin:256px 256px}
+#abertura .ab-m{transform:scaleY(0)}
+#abertura .ab-r{stroke-dasharray:943;stroke-dashoffset:943}
+#abertura .ab-h,#abertura .ab-d{transform:scale(0)}
+html.abrindo h1 img{visibility:hidden}
+@keyframes ab-fundo{0%{opacity:0}9%,100%{opacity:1}}
+@keyframes ab-linha{0%,7%{transform:scaleY(0)}28%,100%{transform:scaleY(1)}}
+@keyframes ab-traco{0%{stroke-dashoffset:943}8%{stroke-dashoffset:943;animation-timing-function:cubic-bezier(.4,0,.2,1)}44%,100%{stroke-dashoffset:0}}
+@keyframes ab-ponto{0%,40%{transform:scale(0)}48%,100%{transform:scale(1)}}
+@keyframes ab-ponteiro{0%,44%{transform:scale(0)}56%{transform:scale(1.06)}61%,100%{transform:scale(1)}}
+@keyframes ab-pouso{0%{transform:none}68%{transform:none;animation-timing-function:cubic-bezier(.5,0,.15,1)}94%,100%{transform:translate(var(--dx,0px),var(--dy,0px)) scale(var(--s,1))}}
+@keyframes ab-veu{0%,68%{opacity:1}94%,100%{opacity:0}}
+#abertura.run svg{animation:ab-fundo 4s both,ab-pouso 4s both}
+#abertura.run .ab-veu{animation:ab-veu 4s both}
+#abertura.run .ab-m{animation:ab-linha 4s both}
+#abertura.run .ab-r{animation:ab-traco 4s both}
+#abertura.run .ab-d{animation:ab-ponto 4s both}
+#abertura.run .ab-h{animation:ab-ponteiro 4s both}
 </style>
 </head>
 <body>
+
+<div id="abertura" aria-hidden="true">
+  <div class="ab-veu"></div>
+  <svg viewBox="0 0 512 512">
+    <rect width="512" height="512" rx="116" fill="#0D6A54"/>
+    <line class="ab-m" x1="256" y1="0" x2="256" y2="512" stroke="#F2FBF7" stroke-opacity="0.3" stroke-width="12"/>
+    <g transform="rotate(-90 256 256)"><circle class="ab-r" cx="256" cy="256" r="150" fill="#0D6A54" stroke="#F2FBF7" stroke-width="28"/></g>
+    <line class="ab-h" x1="256" y1="256" x2="256" y2="158" stroke="#F4BE1B" stroke-width="28" stroke-linecap="round"/>
+    <line class="ab-h" x1="256" y1="256" x2="216" y2="325" stroke="#F4BE1B" stroke-width="28" stroke-linecap="round"/>
+    <circle class="ab-d" cx="256" cy="256" r="20" fill="#F4BE1B"/>
+  </svg>
+</div>
+<script>
+/* A abertura toca só na primeira vez que o app é aberto no dia (por aparelho). */
+(function(){
+  var el=document.getElementById('abertura');
+  try{
+    var d=new Date(),hoje=d.getFullYear()+'-'+(d.getMonth()+1)+'-'+d.getDate();
+    var semMovimento=window.matchMedia&&window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    if(semMovimento||localStorage.getItem('meusHorariosAbertura')===hoje){el.remove();return}
+    localStorage.setItem('meusHorariosAbertura',hoje);
+    document.documentElement.classList.add('abrindo');
+  }catch(e){el.remove()}
+})();
+</script>
 
 <div class="app">
   <header class="top">
@@ -505,6 +553,23 @@ document.addEventListener('visibilitychange',()=>{if(!document.hidden){rAgora();
 statusArq();
 render();
 irPara((location.hash||'').slice(1)||'agora');
+
+/* ---------- abertura ---------- */
+(function(){
+  const el=$('abertura');if(!el)return;
+  const fim=()=>{if(el.isConnected)el.remove();document.documentElement.classList.remove('abrindo')};
+  const alvo=document.querySelector('h1 img');
+  if(!alvo){fim();return}
+  /* Destino do pouso: o lugar da logo no cabeçalho. */
+  const a=alvo.getBoundingClientRect(),o=el.getBoundingClientRect();
+  el.style.setProperty('--dx',(a.left+a.width/2-(o.left+o.width/2))+'px');
+  el.style.setProperty('--dy',(a.top+a.height/2-(o.top+o.height/2))+'px');
+  el.style.setProperty('--s',String(a.width/132));
+  el.classList.add('run');
+  el.addEventListener('click',fim);
+  document.addEventListener('keydown',fim,{once:true});
+  setTimeout(fim,4100);
+})();
 </script>
 </body>
 </html>
