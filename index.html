@@ -520,7 +520,6 @@ function rDados(){
     }
     if(nuvemEstado==='chave')h+=`<p class="erro">O Drive recusou a chave deste aparelho. Toque em Desligar e cole a chave de novo.</p>`;
     if(nuvemEstado==='offline')h+=`<p class="erro">Não foi possível falar com o Google Drive agora. O app tenta de novo na próxima alteração ou quando for aberto.</p>`;
-    h+=`<h2>Cópia de segurança</h2><p class="lead">Se quiser, baixe uma cópia da grade no arquivo <code>dados.js</code>.</p><div class="acoes"><button type="button" class="btn" data-act="baixar">Baixar dados.js</button></div>`;
     $('dados-box').innerHTML=h;return;
   }
   let h=`<h2>Meus dados</h2><p class="lead">Suas turmas, sua grade e os horários ficam no arquivo <code>dados.js</code>. Depois de alterar algo aqui, baixe o arquivo novo e substitua o do GitHub, para a mudança valer em todos os aparelhos.</p>`;
