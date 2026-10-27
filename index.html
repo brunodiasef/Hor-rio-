@@ -230,6 +230,8 @@ html.abrindo h1 img{visibility:hidden}
 
 <!-- Arquivo com SEUS dados (turmas, grade e horários) -->
 <script src="dados.js"></script>
+<!-- Endereço do servidor no Google Drive (Apps Script) -->
+<script src="nuvem.js"></script>
 
 <script>
 /*PURE-START*/
@@ -340,6 +342,14 @@ function aplicarArquivo(){state=deExterno(ARQ||{});versao=(ARQ&&ARQ.versao)||1;p
 })();
 function statusArq(){
   const el=$('sync');
+  if(typeof NUVEM!=='undefined'&&NUVEM){
+    const M={carregando:['load','Buscando no Google Drive…'],salvando:['pend','Salvando no Google Drive…'],ok:['ok','Salvo no Google Drive'],
+      offline:['pend',naoEnviado?'Sem internet: salvo neste aparelho':'Sem internet: cópia deste aparelho'],chave:['pend','Chave do Drive incorreta'],
+      leitura:['ok','Grade do Google Drive'],vazio:['load','Google Drive ainda vazio']};
+    let m=M[nuvemEstado]||M.carregando;
+    if(!chaveDrive&&naoEnviado&&nuvemEstado!=='carregando')m=['pend','Alterações só neste aparelho'];
+    el.dataset.s=m[0];$('sync-txt').textContent=m[1];return;
+  }
   if(pendente){el.dataset.s='pend';$('sync-txt').textContent='Alterações só neste aparelho'}
   else if(arqTemDados()){el.dataset.s='ok';$('sync-txt').textContent='dados.js versão '+versao}
   else{el.dataset.s='load';$('sync-txt').textContent='Salvo neste aparelho'}
@@ -347,7 +357,59 @@ function statusArq(){
 function mapa(){return new Map(state.turmas.map(t=>[t.id,t]))}
 function agoraInfo(){const d=new Date();return{d,dow:d.getDay(),min:d.getHours()*60+d.getMinutes()+d.getSeconds()/60}}
 function temAula(){return DIAS.some(d=>state.grade[d].some(Boolean))}
-function mudou(pular){pendente=true;baixou=false;guardar();statusArq();render(pular)}
+function mudou(pular){pendente=true;baixou=false;rev++;naoEnviado=true;guardar();guardarNuvem();statusArq();render(pular);agendarNuvem()}
+
+/* ---------- Google Drive ----------
+   Com o endereço em nuvem.js, a grade fica num arquivo do Google Drive:
+   todo aparelho lê; quem tem a chave do Drive também grava. */
+const NUVEM=(typeof NUVEM_URL==='string'&&/^https:\/\/script\.google\.com\/macros\/s\/[A-Za-z0-9_-]+\/exec$/.test(NUVEM_URL))?NUVEM_URL:'';
+const CHAVE_DRIVE='meusHorariosChaveDrive', CHAVE_NAO_ENV='meusHorariosNaoEnviado';
+let chaveDrive='', naoEnviado=false, nuvemEstado=NUVEM?'carregando':'off', nuvemEm='', rev=0, tNuvem=null, enviando=false, deNovo=false, ligarErro='';
+try{chaveDrive=localStorage.getItem(CHAVE_DRIVE)||''}catch(e){}
+try{const v=localStorage.getItem(CHAVE_NAO_ENV);naoEnviado=v===null?pendente:v==='1'}catch(e){}
+(function chaveDoLink(){
+  const m=(location.hash||'').match(/^#chave=([A-Za-z0-9_-]{10,80})$/);if(!m)return;
+  chaveDrive=m[1];try{localStorage.setItem(CHAVE_DRIVE,chaveDrive)}catch(e){}
+  try{history.replaceState(null,'','#agora')}catch(e){}
+})();
+function guardarNuvem(){try{localStorage.setItem(CHAVE_NAO_ENV,naoEnviado?'1':'0')}catch(e){}}
+function estado(s){nuvemEstado=s;statusArq();if(!$('dados-box').contains(document.activeElement))rDados()}
+async function baixarNuvem(){
+  if(!NUVEM||enviando||tNuvem)return;
+  if(!nuvemEm)estado('carregando');
+  try{
+    const r=await fetch(NUVEM,{cache:'no-store'});const j=await r.json();
+    if(!j||!j.ok)throw new Error('resposta');
+    const temDados=!!(j.dados&&Array.isArray(j.dados.classes));
+    /* Alterações deste aparelho que ainda não foram para o Drive têm prioridade. */
+    if(naoEnviado||!temDados){if(chaveDrive){await enviarNuvem();return}estado(temDados?'leitura':'vazio');return}
+    if(j.atualizadoEm!==nuvemEm){
+      nuvemEm=j.atualizadoEm;
+      const novo=deExterno(j.dados);
+      if(JSON.stringify(novo)!==JSON.stringify(state)){state=novo;versao=j.dados.versao||versao;pendente=false;guardar();render()}
+    }
+    estado(chaveDrive?'ok':'leitura');
+  }catch(e){estado('offline')}
+}
+function agendarNuvem(){
+  if(!NUVEM||!chaveDrive)return;
+  clearTimeout(tNuvem);tNuvem=setTimeout(()=>{tNuvem=null;enviarNuvem()},1200);
+  estado('salvando');
+}
+async function enviarNuvem(){
+  if(!NUVEM||!chaveDrive)return;
+  if(enviando){deNovo=true;return}
+  enviando=true;estado('salvando');
+  const minha=rev;
+  try{
+    const r=await fetch(NUVEM,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify({chave:chaveDrive,dados:paraExterno(state,versao)})});
+    const j=await r.json();
+    enviando=false;
+    if(j&&j.ok){nuvemEm=j.atualizadoEm;if(rev===minha){naoEnviado=false;pendente=false;guardar();guardarNuvem()}estado('ok')}
+    else estado(j&&j.erro==='chave'?'chave':'offline');
+  }catch(e){enviando=false;estado('offline')}
+  if(deNovo){deNovo=false;enviarNuvem()}
+}
 
 /* ---------- ponto ---------- */
 function hojeChave(){const n=new Date();return n.getFullYear()+'-'+String(n.getMonth()+1).padStart(2,'0')+'-'+String(n.getDate()).padStart(2,'0')}
@@ -448,6 +510,19 @@ function rHorarios(){
   $('hor-lista').innerHTML=h;avisoHorarios();
 }
 function rDados(){
+  if(typeof NUVEM!=='undefined'&&NUVEM){
+    let h=`<h2>Google Drive</h2><p class="lead">Suas turmas, sua grade e os horários ficam no arquivo <code>Meus Horários - dados.json</code> do seu Google Drive. Cada alteração é salva sozinha e aparece nos outros aparelhos quando o app é aberto.</p>`;
+    if(chaveDrive){
+      h+=`<p class="aviso">Este aparelho está ligado ao Drive e salva as alterações.</p><div class="acoes"><button type="button" class="btn" data-act="nuvem-atualizar">Buscar agora</button><button type="button" class="btn txt" data-act="desligar">Desligar este aparelho</button></div>`;
+    }else{
+      h+=`<p class="aviso">Este aparelho só mostra a grade${naoEnviado?' e tem alterações que ainda não foram para o Drive':''}. Para ele também salvar no Drive, cole a chave do Drive e toque em Ligar.</p><form class="nova" id="f-chave" autocomplete="off"><label class="sr" for="chave-drive">Chave do Drive</label><input class="campo" id="chave-drive" placeholder="Chave do Drive (começa com mh_)" autocapitalize="off" autocorrect="off" spellcheck="false"><button class="btn pri" type="submit">Ligar este aparelho</button></form>`;
+      if(ligarErro)h+=`<p class="erro">${esc(ligarErro)}</p>`;
+    }
+    if(nuvemEstado==='chave')h+=`<p class="erro">O Drive recusou a chave deste aparelho. Toque em Desligar e cole a chave de novo.</p>`;
+    if(nuvemEstado==='offline')h+=`<p class="erro">Não foi possível falar com o Google Drive agora. O app tenta de novo na próxima alteração ou quando for aberto.</p>`;
+    h+=`<h2>Cópia de segurança</h2><p class="lead">Se quiser, baixe uma cópia da grade no arquivo <code>dados.js</code>.</p><div class="acoes"><button type="button" class="btn" data-act="baixar">Baixar dados.js</button></div>`;
+    $('dados-box').innerHTML=h;return;
+  }
   let h=`<h2>Meus dados</h2><p class="lead">Suas turmas, sua grade e os horários ficam no arquivo <code>dados.js</code>. Depois de alterar algo aqui, baixe o arquivo novo e substitua o do GitHub, para a mudança valer em todos os aparelhos.</p>`;
   if(pendente)h+=`<p class="aviso">Há alterações que ainda não estão no <code>dados.js</code>. Por enquanto elas valem só neste aparelho.</p>`;
   if(baixou)h+=`<p class="aviso">Arquivo baixado (versão ${versao}). Envie-o ao GitHub no lugar do <code>dados.js</code> antigo.</p>`;
@@ -533,12 +608,21 @@ document.addEventListener('click',e=>{
     delPend=null;mudou();
   }
   else if(act==='baixar')baixarDados();
+  else if(act==='nuvem-atualizar')baixarNuvem();
+  else if(act==='desligar'){chaveDrive='';try{localStorage.removeItem(CHAVE_DRIVE)}catch(err){}statusArq();rDados();baixarNuvem()}
   else if(act==='rest'){restPend=true;rDados()}
   else if(act==='rest-nao'){restPend=false;rDados()}
-  else if(act==='rest-ok'){restPend=false;baixou=false;aplicarArquivo();statusArq();render()}
+  else if(act==='rest-ok'){restPend=false;baixou=false;aplicarArquivo();statusArq();render();if(NUVEM){rev++;naoEnviado=true;guardarNuvem();agendarNuvem()}}
 });
 document.addEventListener('keydown',e=>{if(e.key==='Escape')fecharSheet()});
 document.addEventListener('submit',e=>{
+  if(e.target.id==='f-chave'){
+    e.preventDefault();
+    const v=$('chave-drive').value.trim();
+    if(!/^[A-Za-z0-9_-]{10,80}$/.test(v)){ligarErro='Essa chave não parece certa. Confira se copiou a chave inteira.';rDados();return}
+    ligarErro='';chaveDrive=v;try{localStorage.setItem(CHAVE_DRIVE,v)}catch(err){}
+    $('chave-drive').blur();statusArq();rDados();baixarNuvem();return;
+  }
   if(e.target.id!=='f-nova')return;
   e.preventDefault();
   const nome=$('nova-nome').value.trim(),err=$('nova-erro');
@@ -564,11 +648,12 @@ document.addEventListener('change',e=>{
   }
 });
 setInterval(()=>{const{dow,min}=agoraInfo();if(Math.floor(min)+'|'+dow+'|'+hojeChave()!==chaveAgora){rAgora();rSemana()}},5000);
-document.addEventListener('visibilitychange',()=>{if(!document.hidden){rAgora();rSemana()}});
+document.addEventListener('visibilitychange',()=>{if(!document.hidden){rAgora();rSemana();baixarNuvem()}});
 
 statusArq();
 render();
 irPara((location.hash||'').slice(1)||'agora');
+baixarNuvem();
 
 /* ---------- abertura ---------- */
 (function(){
